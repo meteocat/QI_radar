@@ -1,0 +1,29 @@
+# FOR MORE IN DEPTH SPECIFICATIONS ON CONFIGURATION INPUTS, SEE THE README FILE
+# DO NOT CHANGE THE FORMAT OF THIS CONFIGURATION FILE!
+
+===================== INITIAL UTC TIME [YYYY-MM-DDTHH:MM] =====================
+2025-09-21T16:06
+
+====================== FINAL UTC TIME [YYYY-MM-DDTHH:MM] ======================
+2025-09-21T16:12
+
+================ VOLUME SCAN USED ["VOLA", "VOLB" OR "VOLBC"] =================
+VOLB
+
+============================ CAPPI HEIGHT (meters) ============================
+1000
+
+======================== CARTESIAN RESOLUTION (meters) ========================
+1000
+
+======================== SHORT-RANGE DEM DIRECTORY PATH =======================
+/home/nvm/nvm_local/data/DEM/dem_100m_shortRange_wgs84.tif
+
+======================== LONG-RANGE DEM DIRECTORY PATH ========================
+/home/nvm/nvm_local/data/DEM/dem_100m_longRange_wgs84.tif
+
+============ TEMPORAL STORAGE NAME FOR INDIVIDUAL RADAR PPI FIELDS ============
+temp
+
+======================= ECHO TOPS 12dBZ CLIMATOLOGY PATH ======================
+/home/nvm/nvm_local/xrad_tests/products/HIST_TOP12.nc
