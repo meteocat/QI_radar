@@ -58,12 +58,11 @@ def load_config(config_file):
                 raise ValueError("TOP12 climatology file path in config.txt is incorrect.")
     
     current_path = os.path.dirname(os.path.abspath(__file__))
-    above_path = os.path.dirname(current_path)
-    config["IRIS_dir"] = f"{above_path}/data/raw"
+    config["IRIS_dir"] = f"{current_path}/data/raw/"
     if not os.path.exists(config["IRIS_dir"]) or len(os.listdir(config["IRIS_dir"])) == 0:
         raise ValueError("IRIS directory path does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
 
-    config["product_save_dir"] = f"{above_path}/data/processed"
+    config["product_save_dir"] = f"{current_path}/data/processed/"
     os.makedirs(config["product_save_dir"], exist_ok=True)
         
     return config
