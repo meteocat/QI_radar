@@ -17,88 +17,52 @@ qi_radar_products/
 ├── Polar2Cartesian_PPI.py          # Polar to Cartesian conversion of PPI radar data
 ├── Composite_tools.py              # Compositing radar data from multiple radars
 ├── CAPPI_LUE_tools.py              # Tools for generating CAPPI and LUE products
-├── 
+|
 ├── config.txt                      # Configuration file with processing parameters
 ├── README.md                       # This documentation file
+|
 ├── data/                           # Directory containing data files
 │   └── raw/                        # Raw radar data files
 │       └── ... (additional files)
+|
 └── visualization/                  # Directory for visualization outputs
 ```
 
 ---
 
-## **Input Data Format**
+## **Data Format**
 
 ### ▶ **Input Files**
 
 The pipeline requires the following input data:
 
-- **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. These files are organized in subdirectories under `data/raw/`, named by radar station and date (e.g., `CDVRAW20250921/` for CDV radar on September 21, 2025). Each file corresponds to a volume scan at specific times.
-
-- **Configuration File**: `config.txt` - A text file specifying processing parameters including:
-  - Initial and final UTC times for processing
-  - Volume scan type (VOLA, VOLB, or VOLBC)
-  - CAPPI height in meters
-  - Cartesian grid resolution
-  - Paths to Digital Elevation Model (DEM) files for short-range and long-range processing
-  - Path to echo tops climatology data (NetCDF file)
+- **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. These files are organized in subdirectories under `data/raw/`, named by radar station and date (e.g., `CDVRAW20250921/` for CDV radar on September 21, 2025). Each file corresponds to a volume scan at specific times (VOL-A, VOL-B, and VOL-C).
 
 - **Auxiliary Data**:
-  - DEM files (GeoTIFF format) for terrain correction
-  - Climatological echo tops data (NetCDF format) for quality index computation
+  - DEM files (GeoTIFF format) for terrain correction.
+  - Climatological echo tops data (NetCDF format) for quality index computation.
 
-The raw radar data should be placed in the `data/raw/` directory with the expected naming convention and folder structure.
-
----
-
-## **Output Products**
+- **Configuration File**: `config.txt` - A text file specifying processing parameters, including:
+  - Initial and final UTC times for processing (note that the final time is not processed).
+  - Volume scan type (VOLA, VOLB, or VOLBC). Choose according to the desired products.
+  - CAPPI height in meters.
+  - Cartesian grid resolution in meters. Note that modifying this parameter will significantly affect processing time.
+  - Paths to Digital Elevation Model (DEM) files for short-range and long-range processing.
+  - Path to echo tops climatology data (NetCDF file).
 
 ### ▶ **Output Files**
 
-The pipeline generates the following products, saved as NetCDF (.nc) files in a structured directory hierarchy:
+The pipeline generates the following composite products as NetCDF (.nc) files:
 
-- **CAPPI (Constant Altitude Plan Position Indicator)**: Cartesian reflectivity fields at a constant altitude (specified in config.txt), with quality index and elevation data.
+- **CAPPI (Constant Altitude Plan Position Indicator)**: Cartesian reflectivity fields at a specified height, with MAX-Z (maximum reflectivity) and MAX-QI (maximum quality index) composites.
+- **LUE (Lowest Usable Elevation)**: Products from the lowest usable elevation angles, with MAX-Z and MAX-QI composites.
 
-- **LUE (Lowest Usable Elevation)**: Products derived from the lowest usable elevation angles for each radar gate.
-
-- **Composites**: Network-wide composites combining data from multiple radars using quality-based weighting (e.g., MAXQI method prioritizing highest quality index).
+Files are organized by volume type, product type, composite type, and date (e.g., `VOLB/CAPPI/MAXQI/2025/09/21/VOLB_CAPPI_MAXQI_2509211606.nc`).
 
 Each output file contains variables:
 - `Z`: Reflectivity (dBZ)
 - `QI`: Quality Index (dimensionless, 0-1)
-- `RAD`: Radar identifier (integer)
-- `ELEV`: Elevation angle (degrees)
-
-Files are organized by volume type, product type (e.g., CAPPI, LUE), composite type, and date (YYYY/MM/DD). For example: `VOLB/CAPPI/MAXQI/2025/09/21/VOLB_CAPPI_MAXQI_2509211606.nc`
+- `RAD`: Radar identifier chosen by the composite criteria (integer)
+- `ELEV`: Elevation angle used (degrees)
 
 Visualization outputs (plots, maps) may be generated in the `visualization/` directory for analysis.
-
----
-
-## **Getting Started**
-
-### **1. Install Dependencies**
-
-Install the required Python libraries using pip or conda:
-
-```bash
-pip install wradlib numpy scipy matplotlib cartopy pandas xarray xradar pyproj shapely rasterio
-```
-
-Or using conda:
-
-```bash
-conda install -c conda-forge wradlib numpy scipy matplotlib cartopy pandas xarray xradar pyproj shapely rasterio
-```
-
-### **2. Run the Main Pipeline**
-
-Typical usage might look like:
-
-```bash
-python main/compute_qi.py
-python main/generate_lue.py
-python main/generate_cappi.py
-python main/composite_products.py
-python main/validation.py
