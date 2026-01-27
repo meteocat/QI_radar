@@ -2,3 +2,4 @@ __pycache__/
 processed_data/
 temp/
 config copy.txt
+.gitignore
