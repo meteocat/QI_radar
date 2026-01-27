@@ -16,6 +16,12 @@ VOLB
 ======================== CARTESIAN RESOLUTION (meters) ========================
 1000
 
+============================= RAW DATA DIRECTORY ==============================
+/home/user/raw_data/
+
+========================== PROCESSED DATA DIRECTORY ===========================
+/home/user/processed_data/
+
 ======================== SHORT-RANGE DEM DIRECTORY PATH =======================
 /home/user/DEM/dem_100m_shortRange_wgs84.tif
 

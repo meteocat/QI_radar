@@ -34,8 +34,20 @@ def load_config(config_file):
             except:
                 raise ValueError("CAPPI HEIGHT and CARTESIAN RESOLUTION in config.txt must be an integer value in meters.")
 
-        elif l == 20: config["SR_DEM_path"] = line.strip()
+        elif l == 20: 
+            config["IRIS_dir"] = line.strip()
+            if not os.path.exists(config["IRIS_dir"]) or len(os.listdir(config["IRIS_dir"])) == 0:
+                raise ValueError("IRIS directory path does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
+        
         elif l == 23: 
+            config["product_save_dir"] = line.strip()
+            try:
+                os.makedirs(config["product_save_dir"], exist_ok=True)
+            except:
+                raise ValueError("Product save directory path in config.txt is incorrect.")
+
+        elif l == 26: config["SR_DEM_path"] = line.strip()
+        elif l == 29: 
             config["LR_DEM_path"] = line.strip()
             try:
                 with open(config["SR_DEM_path"], "r") as f:
@@ -45,24 +57,16 @@ def load_config(config_file):
             except:
                 raise ValueError("DEM file path(s) in config.txt is/are incorrect.")
 
-        elif l == 26: 
+        elif l == 32: 
             config["PPI_save_dir"] = line.strip()
             os.makedirs(config["PPI_save_dir"], exist_ok=True)
 
-        elif l == 29: 
+        elif l == 35: 
             config["TOP12_clim_path"] = line.strip()
             try:
                 with open(config["TOP12_clim_path"], "r") as f:
                     pass
             except:
                 raise ValueError("TOP12 climatology file path in config.txt is incorrect.")
-    
-    current_path = os.path.dirname(os.path.abspath(__file__))
-    config["IRIS_dir"] = f"{current_path}/data/raw/"
-    if not os.path.exists(config["IRIS_dir"]) or len(os.listdir(config["IRIS_dir"])) == 0:
-        raise ValueError("IRIS directory path does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
-
-    config["product_save_dir"] = f"{current_path}/data/processed/"
-    os.makedirs(config["product_save_dir"], exist_ok=True)
         
     return config
