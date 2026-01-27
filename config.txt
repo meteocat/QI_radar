@@ -17,16 +17,16 @@ VOLB
 1000
 
 ============================= RAW DATA DIRECTORY ==============================
-/home/user/raw_data/
+/home/nvm/nvm_local/data/rad_data/
 
 ========================== PROCESSED DATA DIRECTORY ===========================
-/home/user/processed_data/
+/home/nvm/nvm_local/QI_radar/processed_data/
 
 ======================== SHORT-RANGE DEM DIRECTORY PATH =======================
-/home/user/DEM/dem_100m_shortRange_wgs84.tif
+/home/nvm/nvm_local/data/DEM/dem_100m_shortRange_wgs84.tif
 
 ======================== LONG-RANGE DEM DIRECTORY PATH ========================
-/home/user/DEM/dem_100m_longRange_wgs84.tif
+/home/nvm/nvm_local/data/DEM/dem_100m_longRange_wgs84.tif
 
 ============ TEMPORAL STORAGE NAME FOR INDIVIDUAL RADAR PPI FIELDS ============
 temp
