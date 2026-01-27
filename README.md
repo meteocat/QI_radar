@@ -52,12 +52,10 @@ The pipeline requires the following input data:
 
 ### ▶ **Output Files**
 
-The pipeline generates the following composite products as NetCDF (.nc) files:
+The pipeline generates the following composite products as NetCDF (.nc) files organized by volume type, product type, composite type, and date:
 
 - **CAPPI (Constant Altitude Plan Position Indicator)**: Cartesian reflectivity fields at a specified height, with MAX-Z (maximum reflectivity) and MAX-QI (maximum quality index) composites.
 - **LUE (Lowest Usable Elevation)**: Products from the lowest usable elevation angles, with MAX-Z and MAX-QI composites.
-
-Files are organized by volume type, product type, composite type, and date (e.g., `VOLB/CAPPI/MAXQI/2025/09/21/VOLB_CAPPI_MAXQI_2509211606.nc`).
 
 Each output file contains variables:
 - `Z`: Reflectivity (dBZ)
@@ -65,4 +63,11 @@ Each output file contains variables:
 - `RAD`: Radar identifier chosen by the composite criteria (integer)
 - `ELEV`: Elevation angle used (degrees)
 
-Visualization outputs (plots, maps) may be generated in the `visualization/` directory for analysis.
+---
+
+## **Visualization**
+
+Visualization output may be generated using the ```plotComposite.py``` script following this command:
+
+- If only wanting to visualise: ```python plotComposite.py [product_file_path.nc]```
+- If wanting to save png: ```python plotComposite.py s [product_file_path.nc] [saving_directory]```

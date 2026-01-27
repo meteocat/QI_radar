@@ -1,0 +1,167 @@
+import xarray as xr
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.gridspec as gridspec
+import numpy as np
+import geopandas as gpd
+import cartopy as crtpy
+import sys, os
+from pyproj import Transformer
+
+bounds = [-10, -5, 0, 5, 10, 15, 20, 25, 30,
+          35, 40, 45, 50, 55, 60, 65]
+colors = [
+    "#646464",  # -10–0 dBZ (gray, very weak)
+    "#04e9e7",  # 0
+    "#019ff4",  # 5
+    "#0300f4",  # 10
+    "#02fd02",  # 15
+    "#01c501",  # 20
+    "#008e00",  # 25
+    "#fdf802",  # 30
+    "#e5bc00",  # 35
+    "#fd9500",  # 40
+    "#fd0000",  # 45
+    "#d40000ff",  # 50
+    "#bc0000",  # 55
+    "#f800fd",  # 60
+    "#9854c6",  # 65
+]
+rad_cmap = mcolors.ListedColormap(colors)
+
+def make_discrete_cmap(cmap, N):
+    """
+    Converteix un colormap continu en un colormap discret amb N colors.
+    Arguments:
+      cmap : nom de colormap (str) o objecte matplotlib.colors.Colormap
+      N    : nombre d'esglaons (int)
+    Retorna:
+      matplotlib.colors.ListedColormap
+    """
+    if isinstance(cmap, str):
+        cmap = plt.get_cmap(cmap)
+    # mostrem els N colors muestrejant uniformement el colormap
+    colors = cmap(np.linspace(0, 1, N))
+    return mcolors.ListedColormap(colors, name=f"{cmap.name}_discrete_{N}")
+
+cmap_QI = make_discrete_cmap('RdYlGn', 10)
+
+values = [0.6, 0.8, 1.0, 1.3, 1.7, 2.0, 3.0]
+colors = ['#3288bd','#66c2a5','#abdda4','#e6f598',
+          '#fee08b','#f46d43','#d53e4f']
+fake_bounds = np.arange(len(values)+1)
+cmap_elev = mcolors.ListedColormap(colors)
+norm_elev = mcolors.BoundaryNorm(fake_bounds, cmap_elev.N)
+
+colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#d62728"]  # Blue, Green, Orange, Red
+labels = ['CDV', 'LMI', 'PBE', 'PDA']
+which_cmap = mcolors.ListedColormap(colors)
+# which_norm = mcolors.BoundaryNorm(boundaries=np.arange(5)-0.5, ncolors=4)
+to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
+
+if sys.argv[1] == "s":
+  save = True
+  COMP_path = sys.argv[2]
+  SAVE_dir = sys.argv[3]
+else:
+  save = False
+  COMP_path = sys.argv[1]
+
+ds = xr.open_dataset(COMP_path, engine="scipy")
+Z_comp = ds.Z.values
+QI_comp = ds.QI.values
+which_rad = ds.RAD.values
+ELEV = ds.ELEV.values
+
+rad_pos = np.array([[41.60192013,  1.40283002],
+                    [41.37334999,  1.88197011],
+                    [41.8888201 ,  2.99717009],
+                    [41.09175006,  0.86348003]])
+rad_x, rad_y = to_utm.transform(rad_pos[:,1], rad_pos[:,0])
+
+# --- NEW FIGURE LAYOUT WITH GRIDSPEC ---
+fig = plt.figure(figsize=(20,10))
+gs = gridspec.GridSpec(
+    2, 3, figure=fig,
+    width_ratios=[5, 2.5, 2.5],   # big left + two small columns
+    height_ratios=[2, 2],
+    left=0.03, right=0.97, wspace=0.1, hspace=-0.1,
+    top=0.95, bottom=0.05
+)
+
+proj = crtpy.crs.UTM(zone=31)
+
+# Big plot (left, spans both rows)
+ax_big = fig.add_subplot(gs[:, 0], projection=proj)
+
+# Small 2x2 on the right
+ax_tl = fig.add_subplot(gs[0, 1], projection=proj)  # top-left small
+ax_tr = fig.add_subplot(gs[0, 2], projection=proj)  # top-right small (empty)
+ax_bl = fig.add_subplot(gs[1, 1], projection=proj)  # bottom-left small
+ax_br = fig.add_subplot(gs[1, 2], projection=proj)  # bottom-right small
+
+axes_all = [ax_big, ax_tl, ax_bl, ax_br, ax_tr]
+
+shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
+comarques = gpd.read_file(shape_file)
+comarques = comarques.to_crs(epsg=25831)
+
+for axis in axes_all:
+    comarques.boundary.plot(ax=axis, color='black', linewidth=0.7)
+    axis.coastlines(linewidth=1.5)
+    axis.add_feature(crtpy.feature.BORDERS, linestyle='-', edgecolor='black', linewidth=1.5)
+    axis.set_xticks([]), axis.set_yticks([])
+    axis.set_xlim(ds.x.values.min(), ds.x.values.max())
+    axis.set_ylim(ds.y.values.min(), ds.y.values.max())
+
+# --- PLOTS (re-mapped from old positions) ---
+
+# BIG: old ax[0,0] -> Z composite
+Z_comp_plot = np.copy(Z_comp)
+Z_comp_plot[Z_comp == -32] = np.nan
+pc = ax_big.pcolormesh(ds.x, ds.y, Z_comp_plot, vmin=-10, vmax=65, cmap=rad_cmap)
+fig.colorbar(pc, ax=ax_big, fraction=0.035, pad=0.01)
+ax_big.set_title("Z composite")
+
+# SMALL top-left: old ax[0,1] -> which radar
+pc = ax_tl.pcolormesh(ds.x, ds.y, which_rad, cmap=which_cmap)
+cbar = fig.colorbar(pc, ax=ax_tl, ticks=np.arange(0.75/2, 3, 0.75), fraction=0.03, pad=0.01)
+cbar.ax.set_yticklabels(labels)
+ax_tl.set_title("Which radar data is selected")
+
+# SMALL bottom-left: old ax[1,0] -> QI DET
+QI_DET, QI_UNDET = np.copy(QI_comp), np.copy(QI_comp)
+QI_DET[Z_comp == -32] = np.nan
+QI_UNDET[Z_comp > -32] = np.nan
+
+pc = ax_bl.pcolormesh(ds.x, ds.y, QI_DET, vmin=0, vmax=1, cmap=cmap_QI)
+fig.colorbar(pc, ax=ax_bl, fraction=0.03, pad=0.01)
+ax_bl.set_title("QI DETECTED composite")
+
+# SMALL bottom-right: old ax[1,1] -> QI UNDET
+pc = ax_br.pcolormesh(ds.x, ds.y, QI_UNDET, vmin=0, vmax=1, cmap=cmap_QI)
+fig.colorbar(pc, ax=ax_br, fraction=0.03, pad=0.01)
+ax_br.set_title("QI UNDETECTED composite")
+
+# EMPTY top-right subplot
+pc = ax_tr.pcolormesh(ds.x, ds.y, ELEV, vmin=0.6, vmax=3, cmap=cmap_elev)
+tick_positions = np.arange(len(values)) + 0.5
+cb = fig.colorbar(
+    plt.cm.ScalarMappable(norm=norm_elev, cmap=cmap_elev),
+    ax=ax_tr,
+    ticks=tick_positions,
+    fraction=0.03, pad=0.01
+)
+cb.set_ticklabels([str(v) for v in values])
+ax_tr.set_title("Elevation (deg)")
+
+# Radar positions on all *real* axes
+for axis in [ax_big, ax_tl, ax_bl, ax_br, ax_tr]:
+    axis.scatter(rad_x, rad_y, facecolors="white",
+                 edgecolors="black", linewidths=2, zorder=20)
+
+if save:
+  filename = os.path.basename(COMP_path)[:-3]
+  plt.savefig(f"{SAVE_dir}/{filename}.png", dpi=200, bbox_inches="tight")
+else:
+  plt.show()
