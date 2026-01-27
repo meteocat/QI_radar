@@ -18,7 +18,7 @@ QI_radar/
 ├── Composite_tools.py              # Compositing radar data from multiple radars
 ├── CAPPI_LUE_tools.py              # Tools for generating CAPPI and LUE products
 |
-├── config.txt                      # Configuration file with processing parameters
+├── config_template.txt             # Configuration file with processing parameters
 ├── HIST_TOP12.nc                   # Climatological echo tops data file
 ├── README.md                       # This documentation file
 |
@@ -31,7 +31,7 @@ QI_radar/
 
 ### ▶ **Input Files**
 
-The pipeline requires the following input data:
+The pipeline requires the following input data to be configured in a new configuration file named `config.txt` (take example from the `config_template.txt`):
 
 - **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. These files are located in the directory specified in `config.txt` (RAW DATA DIRECTORY).
 
