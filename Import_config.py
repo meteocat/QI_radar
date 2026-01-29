@@ -1,9 +1,23 @@
 import datetime as dt
 import os
 
-def load_config(config_file):
-    with open(config_file, "r") as f:
-        config_data = f.read()
+def load_config(config_file: str) -> dict:
+    '''Load configuration parameters from a text file.
+    Parameters
+    ----------
+    config_file : str
+        Path to the configuration text file.
+    Returns
+    -------
+    config : dict
+        Dictionary containing configuration parameters.
+    '''
+
+    try:
+        with open(config_file, "r") as f:
+            config_data = f.read()
+    except:
+        raise FileNotFoundError("Configuration file 'config.txt' not found. Please create it based on 'config_template.txt'.")
 
     config_lines = config_data.split("\n")
     config = {}

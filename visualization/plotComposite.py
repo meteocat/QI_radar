@@ -67,6 +67,8 @@ else:
   save = False
   COMP_path = sys.argv[1]
 
+filename = os.path.basename(COMP_path)[:-3]
+
 ds = xr.open_dataset(COMP_path, engine="scipy")
 Z_comp = ds.Z.values
 QI_comp = ds.QI.values
@@ -121,7 +123,7 @@ Z_comp_plot = np.copy(Z_comp)
 Z_comp_plot[Z_comp == -32] = np.nan
 pc = ax_big.pcolormesh(ds.x, ds.y, Z_comp_plot, vmin=-10, vmax=65, cmap=rad_cmap)
 fig.colorbar(pc, ax=ax_big, fraction=0.035, pad=0.01)
-ax_big.set_title("Z composite")
+ax_big.set_title(filename)
 
 # SMALL top-left: old ax[0,1] -> which radar
 pc = ax_tl.pcolormesh(ds.x, ds.y, which_rad, cmap=which_cmap)
@@ -161,7 +163,6 @@ for axis in [ax_big, ax_tl, ax_bl, ax_br, ax_tr]:
                  edgecolors="black", linewidths=2, zorder=20)
 
 if save:
-  filename = os.path.basename(COMP_path)[:-3]
   plt.savefig(f"{SAVE_dir}/{filename}.png", dpi=200, bbox_inches="tight")
 else:
   plt.show()

@@ -3,10 +3,10 @@ import numpy as np
 def distance_weighting(dist):
     H = 1000
 
-    if H <= 0:
-        return 0
-    else:
-        return (np.exp(-dist**2/H**2)) ** (1/3)
+    QH = (np.exp(-dist**2/H**2)) ** (1/3)
+    QH[dist < 0] = 0
+    
+    return QH
 
 
 def make_CAPPI(ds, CAPPI_H):
@@ -29,7 +29,7 @@ def make_CAPPI(ds, CAPPI_H):
     # dis_bot = CAPPI_H - H_bot
     # w_dis_bot = distance_weighting(dis_bot)
     CAPPI[reg] = ds_e.Z.values[reg]
-    QI[reg] = ds_e.QI.values[reg] # * w_dis_bot[reg]
+    QI[reg] = ds_e.QI.values[reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[reg] # * w_dis_bot[reg]
     ELEV[reg] = e
 
     # handle NaN values not projected, it projects from the beam below with available data
@@ -44,7 +44,7 @@ def make_CAPPI(ds, CAPPI_H):
         # dis_bot = CAPPI_H - H_bot
         # w_dis_bot = distance_weighting(dis_bot)
         CAPPI[NaN_reg] = ds_e.Z.values[NaN_reg]
-        QI[NaN_reg] = ds_e.QI.values[NaN_reg] # * w_dis_bot[NaN_reg]
+        QI[NaN_reg] = ds_e.QI.values[NaN_reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[NaN_reg] # * w_dis_bot[NaN_reg]
         ELEV[NaN_reg] = e
 
     # =========================== VALUES BETWEEN BEAMS ===========================
@@ -63,7 +63,8 @@ def make_CAPPI(ds, CAPPI_H):
         # Compute Z & QI in CAPPI level
         # 1. Assign Z & QI to variables
         Z_top, Z_bot = ds_top.Z.values[reg], ds_bot.Z.values[reg]
-        QI_top, QI_bot = ds_top.QI.values[reg], ds_bot.QI.values[reg]
+        QI_top = ds_top.QI.values[reg] * distance_weighting(np.abs(H_top - CAPPI_H))[reg]
+        QI_bot = ds_bot.QI.values[reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[reg]
 
         # 2. Compute Z weighting with top and bottom values
         numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
@@ -99,7 +100,8 @@ def make_CAPPI(ds, CAPPI_H):
             ds_bot = ds.isel(elev=e_bot)
             
             Z_top, Z_bot = ds_top.Z.values[NaN_reg], ds_bot.Z.values[NaN_reg]
-            QI_top, QI_bot = ds_top.QI.values[NaN_reg], ds_bot.QI.values[NaN_reg]
+            QI_top = ds_top.QI.values[NaN_reg] * distance_weighting(np.abs(H_top - CAPPI_H))[NaN_reg]
+            QI_bot = ds_bot.QI.values[NaN_reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[NaN_reg]
             
             # 2. Compute Z weighting with top and bottom values
             numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
@@ -137,7 +139,7 @@ def make_CAPPI(ds, CAPPI_H):
     # dis_top = H_top - CAPPI_H
     # w_dis_top = distance_weighting(dis_top)
     CAPPI[reg] = ds_e.Z.values[reg]
-    QI[reg] = ds_e.QI.values[reg] # * w_dis_top[reg]
+    QI[reg] = ds_e.QI.values[reg] * distance_weighting(np.abs(H_top - CAPPI_H))[reg] # * w_dis_top[reg]
     ELEV[reg] = e
 
     # handle QI=0 values projected, it projects from the beam above with available data
@@ -155,7 +157,7 @@ def make_CAPPI(ds, CAPPI_H):
         # dis_top = H_top - CAPPI_H
         # w_dis_top = distance_weighting(dis_top)
         CAPPI[NaN_reg_improv] = ds_e.Z.values[NaN_reg_improv]
-        QI[NaN_reg_improv] = ds_e.QI.values[NaN_reg_improv] # * w_dis_top[NaN_reg]
+        QI[NaN_reg_improv] = ds_e.QI.values[NaN_reg_improv] * distance_weighting(np.abs(H_top - CAPPI_H))[NaN_reg_improv] # * w_dis_top[NaN_reg]
         ELEV[NaN_reg_improv] = e
 
     return CAPPI, QI, ELEV
