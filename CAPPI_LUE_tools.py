@@ -21,6 +21,9 @@ def make_CAPPI(ds, CAPPI_H):
     # print(f'Inner layer: e={ds.elev.values[e]}')
     ds_e = ds.isel(elev=e)
 
+    Z_e = ds_e.Z.values
+    QI_e = ds_e.QI.values
+
     # region closer to radar
     H_bot = ds_e.H.values
     reg = H_bot < CAPPI_H
@@ -28,8 +31,8 @@ def make_CAPPI(ds, CAPPI_H):
     # project Z & QI and adjust QI weighted by vertical distance
     # dis_bot = CAPPI_H - H_bot
     # w_dis_bot = distance_weighting(dis_bot)
-    CAPPI[reg] = ds_e.Z.values[reg]
-    QI[reg] = ds_e.QI.values[reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[reg] # * w_dis_bot[reg]
+    CAPPI[reg] = Z_e[reg]
+    QI[reg] = QI_e[reg]
     ELEV[reg] = e
 
     # handle NaN values not projected, it projects from the beam below with available data
@@ -39,12 +42,14 @@ def make_CAPPI(ds, CAPPI_H):
         e -= 1
         # print(f'Inner layer: e={ds.elev.values[e]}')
         ds_e = ds.isel(elev=e)
+        Z_e = ds_e.Z.values
+        QI_e = ds_e.QI.values
 
         H_bot = ds_e.H.values
         # dis_bot = CAPPI_H - H_bot
         # w_dis_bot = distance_weighting(dis_bot)
-        CAPPI[NaN_reg] = ds_e.Z.values[NaN_reg]
-        QI[NaN_reg] = ds_e.QI.values[NaN_reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[NaN_reg] # * w_dis_bot[NaN_reg]
+        CAPPI[NaN_reg] = Z_e[NaN_reg]
+        QI[NaN_reg] = QI_e[NaN_reg]
         ELEV[NaN_reg] = e
 
     # =========================== VALUES BETWEEN BEAMS ===========================
@@ -53,8 +58,9 @@ def make_CAPPI(ds, CAPPI_H):
         # print(f"\nInter layer: {ds.elev.values[e]}-{ds.elev.values[e-1]}")
 
         # Select upper and lower beams
-        ds_top = ds.isel(elev=e)
-        ds_bot = ds.isel(elev=e-1)
+        ds_top, ds_bot = ds.isel(elev=e), ds.isel(elev=e-1)
+        Z_top, Z_bot = ds_top.Z.values, ds_bot.Z.values
+        QI_top, QI_bot = ds_top.QI.values, ds_bot.QI.values
         
         # Find region within CAPPI altitude between upper and lower beams
         H_top, H_bot = ds_top.H.values, ds_bot.H.values
@@ -62,9 +68,8 @@ def make_CAPPI(ds, CAPPI_H):
 
         # Compute Z & QI in CAPPI level
         # 1. Assign Z & QI to variables
-        Z_top, Z_bot = ds_top.Z.values[reg], ds_bot.Z.values[reg]
-        QI_top = ds_top.QI.values[reg] * distance_weighting(np.abs(H_top - CAPPI_H))[reg]
-        QI_bot = ds_bot.QI.values[reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[reg]
+        Z_top, Z_bot = Z_top[reg], Z_bot[reg]
+        QI_top, QI_bot = QI_top[reg], QI_bot[reg]
 
         # 2. Compute Z weighting with top and bottom values
         numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
@@ -95,13 +100,13 @@ def make_CAPPI(ds, CAPPI_H):
             # print(f"\t{ds.elev.values[e_top]}-{ds.elev.values[e_bot]}")
             
             # Repeat same process as before for each recalculated pair of elevations
-            
-            ds_top = ds.isel(elev=e_top)
-            ds_bot = ds.isel(elev=e_bot)
+    
+            ds_top, ds_bot = ds.isel(elev=e_top), ds.isel(elev=e_bot)
+            Z_top, Z_bot = ds_top.Z.values, ds_bot.Z.values
+            QI_top, QI_bot = ds_top.QI.values, ds_bot.QI.values
             
             Z_top, Z_bot = ds_top.Z.values[NaN_reg], ds_bot.Z.values[NaN_reg]
-            QI_top = ds_top.QI.values[NaN_reg] * distance_weighting(np.abs(H_top - CAPPI_H))[NaN_reg]
-            QI_bot = ds_bot.QI.values[NaN_reg] * distance_weighting(np.abs(CAPPI_H - H_bot))[NaN_reg]
+            QI_top, QI_bot = QI_top[NaN_reg], QI_bot[NaN_reg]
             
             # 2. Compute Z weighting with top and bottom values
             numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
@@ -131,6 +136,9 @@ def make_CAPPI(ds, CAPPI_H):
     # print(f"\nOuter layer: {ds.elev.values[e]}")
     ds_e = ds.isel(elev=e)
 
+    Z_e = ds_e.Z.values
+    QI_e = ds_e.QI.values
+
     # region further from the radar
     H_top = ds_e.H.values
     reg = (H_top > CAPPI_H) * (np.isnan(ds_e.Z.values) == 0)
@@ -138,8 +146,8 @@ def make_CAPPI(ds, CAPPI_H):
     # project Z & QI and adjust QI
     # dis_top = H_top - CAPPI_H
     # w_dis_top = distance_weighting(dis_top)
-    CAPPI[reg] = ds_e.Z.values[reg]
-    QI[reg] = ds_e.QI.values[reg] * distance_weighting(np.abs(H_top - CAPPI_H))[reg] # * w_dis_top[reg]
+    CAPPI[reg] = Z_e[reg]
+    QI[reg] = QI_e[reg]
     ELEV[reg] = e
 
     # handle QI=0 values projected, it projects from the beam above with available data
@@ -151,13 +159,16 @@ def make_CAPPI(ds, CAPPI_H):
         # print(f"Outer layer: {ds.elev.values[e]}")
         ds_e = ds.isel(elev=e)
 
+        Z_e = ds_e.Z.values
+        QI_e = ds_e.QI.values
+
         NaN_reg_improv = NaN_reg * (ds_e.QI.values > QI)
 
         # H_top = ds_e.H.values
         # dis_top = H_top - CAPPI_H
         # w_dis_top = distance_weighting(dis_top)
-        CAPPI[NaN_reg_improv] = ds_e.Z.values[NaN_reg_improv]
-        QI[NaN_reg_improv] = ds_e.QI.values[NaN_reg_improv] * distance_weighting(np.abs(H_top - CAPPI_H))[NaN_reg_improv] # * w_dis_top[NaN_reg]
+        CAPPI[NaN_reg_improv] = Z_e[NaN_reg_improv]
+        QI[NaN_reg_improv] = QI_e[NaN_reg_improv]
         ELEV[NaN_reg_improv] = e
 
     return CAPPI, QI, ELEV
@@ -172,9 +183,6 @@ def make_LUE(ds, DEM_resampled):
     H = ds.isel(elev=0).H.values - DEM_resampled
     QI = ds.isel(elev=0).QI.values
 
-    # Weight quality considering height
-    QI[LUE != -32] = QI[LUE != -32] * distance_weighting(H)[LUE != -32]
-
     # Initialize the elevation array which will store what PPI has been used
     ELEV = np.ones_like(LUE) * np.nan
     ELEV[np.isnan(LUE)==0] = ds.elev.values[0]
@@ -185,12 +193,12 @@ def make_LUE(ds, DEM_resampled):
         # Assign new variables for current elevation and weight QI with height
         Z_e = ds.isel(elev=e).Z.values
         QI_e = ds.isel(elev=e).QI.values
-        QI_e[LUE != -32] = QI_e[LUE != -32] * distance_weighting(H)[LUE != -32]
+        H_e = ds.isel(elev=e).H.values - DEM_resampled
 
         # Pixels where QI <= QI_th and Z_e > Z will be redefined with current elevation on all arrays
         redef_reg = (QI <= QI_th) * (QI_e > QI_th) * (Z_e > LUE)
         ELEV[redef_reg] = ds.elev.values[e]
-        H[redef_reg] = ds.isel(elev=e).H.values[redef_reg] - DEM_resampled[redef_reg]
+        H[redef_reg] = H_e[redef_reg]
         LUE[redef_reg] = Z_e[redef_reg]
         QI[redef_reg] = QI_e[redef_reg]
 

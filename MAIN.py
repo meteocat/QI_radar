@@ -13,6 +13,14 @@ import rasterio
 from rasterio.transform import from_origin
 from rasterio.warp import reproject, Resampling
 
+def distance_weighting(dist):
+    H = 1000
+
+    QH = (np.exp(-dist**2/H**2)) ** (1/3)
+    QH[dist < 0] = 0
+    
+    return QH
+
 def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y, 
                  filedate, prod_type, comp_type, product_save_dir, VOLUME):
     result = xr.Dataset({"Z": (["y", "x"], Z_COMP), 
@@ -132,13 +140,29 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 )
             
             # Compute and store individual CAPPI (and QI)
-            CAPPI, QI, ELEV = make_CAPPI(ds, CAPPI_H)
+            ds_CAPPI = ds.copy(deep=True)
+            for e in range(len(ds.elev.values)):
+                ds_e = ds_CAPPI.isel(elev=e)
+                Z_e = ds_e.Z.values
+                QI_e = ds_e.QI.values
+                H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
+                QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
+                ds_CAPPI["QI"].values[e, ...] = QI_e
+            CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
             CAPPI_ind_rad[i, ...] = CAPPI
             QICAPPI_ind_rad[i, ...] = QI
             ELEVCAPPI_ind_rad[i, ...] = ELEV
 
             # Compute and store individual close to LUEain products
-            LUE, QI, H, ELEV = make_LUE(ds, DEM_resampled)
+            ds_LUE = ds.copy(deep=True)
+            for e in range(len(ds.elev.values)):
+                ds_e = ds_LUE.isel(elev=e)
+                Z_e = ds_e.Z.values
+                QI_e = ds_e.QI.values
+                H_to_ground = ds_e.H.values - DEM_resampled
+                QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
+                ds_LUE["QI"].values[e, ...] = QI_e
+            LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
             LUE_ind_rad[i, ...] = LUE
             QILUE_ind_rad[i, ...] = QI
             ELEVLUE_ind_rad[i, ...] = ELEV

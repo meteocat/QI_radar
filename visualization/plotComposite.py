@@ -54,7 +54,7 @@ cmap_elev = mcolors.ListedColormap(colors)
 norm_elev = mcolors.BoundaryNorm(fake_bounds, cmap_elev.N)
 
 colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#d62728"]  # Blue, Green, Orange, Red
-labels = ['CDV', 'LMI', 'PBE', 'PDA']
+labels = ['CDV', 'PBE', 'PDA', 'LMI']
 which_cmap = mcolors.ListedColormap(colors)
 # which_norm = mcolors.BoundaryNorm(boundaries=np.arange(5)-0.5, ncolors=4)
 to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
