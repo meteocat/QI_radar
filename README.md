@@ -33,7 +33,7 @@ QI_radar/
 
 The pipeline requires the following input data to be configured in a new configuration file named `config.txt` (take example from the `config_template.txt`):
 
-- **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. These files are located in the directory specified in `config.txt` (RAW DATA DIRECTORY).
+- **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. Examples of such files can be found in the following repository: https://github.com/meteocat/QI_radar_data.
 
 - **Auxiliary Data**:
   - DEM files (GeoTIFF format) for terrain correction, specified in `config.txt`.
