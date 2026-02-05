@@ -7,23 +7,31 @@ def load_config(config_file: str) -> dict:
     ----------
     config_file : str
         Path to the configuration text file.
+
     Returns
     -------
-    config : dict
-        Dictionary containing configuration parameters.
+    dict
+        Dictionary containing parsed and validated configuration values.
     '''
 
+    # Read the configuration file into a single string. Propagate a
+    # clear FileNotFoundError if the file cannot be opened.
     try:
         with open(config_file, "r") as f:
             config_data = f.read()
-    except:
-        raise FileNotFoundError("Configuration file 'config.txt' not found. Please create it based on 'config_template.txt'.")
+    except Exception:
+        raise FileNotFoundError(
+            "Configuration file 'config.txt' not found. Please create it based on 'config_template.txt'."
+        )
 
+    # Parse and validate expected configuration values from specific lines.
     config_lines = config_data.split("\n")
     config = {}
     for l in range(1,len(config_lines)+1):
-        line = config_lines[l-1]
+        line = config_lines[l-1] # Adjust for 0-based index
         
+        # Parse expected configuration values based on line number
+
         if l == 5: config["init_dt"] = line.strip()
         elif l == 8: 
             config["fin_dt"] = line.strip()

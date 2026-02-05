@@ -14,15 +14,49 @@ from rasterio.transform import from_origin
 from rasterio.warp import reproject, Resampling
 
 def distance_weighting(dist):
+    ''' Weighting function based on distance quality index (QH)
+    
+    Input:
+    -----
+    dist : float or 2D array
+        Distance value(s) in meters to be used for weighting. Can be a single
+        numeric value or a 2D array of distances.
+
+    Output:
+    ------
+    QH : float or 2D array
+        Weighting value(s) based on distance, with the same shape as the input.
+        Values corresponding to negative distances are set to 0.
+    '''
+
+    # Define scale height (in meters)
     H = 1000
 
+    # Compute quality index based on distance
     QH = (np.exp(-dist**2/H**2)) ** (1/3)
-    QH[dist < 0] = 0
+    QH[dist < 0] = 0 # Set weighting to 0 for negative distances
     
     return QH
 
 def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y, 
                  filedate, prod_type, comp_type, product_save_dir, VOLUME):
+    '''
+    Results datasets saving function. If necessary, creates all the directories.
+    
+    :param Z_COMP: Array of composite reflectivity values
+    :param QI_COMP: Array of composite quality index values
+    :param RAD_COMP: Array of composite radar selection values
+    :param ELEV_COMP: Array of composite elevation beam values
+    :param x: Array of x coordinates
+    :param y: Array of y coordinates
+    :param filedate: File date string in 'yymmddHHMM' format
+    :param prod_type: Product type string, e.g., 'CAPPI1.5km' or 'LUE'
+    :param comp_type: Composite type string, e.g., 'MAXZ' or 'MAXQI'
+    :param product_save_dir: Directory path to save the product
+    :param VOLUME: Volume type string, e.g., 'VOLB', 'VOLA', or 'VOLBC'
+    '''
+
+    # Create xarray dataset
     result = xr.Dataset({"Z": (["y", "x"], Z_COMP), 
                         "QI": (["y", "x"], QI_COMP), 
                         "RAD": (["y", "x"], RAD_COMP),
@@ -42,12 +76,13 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
     save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
     os.makedirs(save_dir, exist_ok=True)
 
+    # Define filename and save dataset
     filename = f"{VOLUME}_{prod_type}_{comp_type}_{filedate}.nc"
     save_as = f"{save_dir}/{filename}"
-
     result.to_netcdf(save_as, engine="scipy")
     print(f"Created {filename}")
 
+# Load configuration parameters from "config" file
 config = load_config("config.txt")
 
 init_dt = config["init_dt"]
@@ -72,7 +107,9 @@ y = np.arange(height) * transform.e + transform.f
 DEM_coords = np.array(np.meshgrid(x, y))
 DEM_coords = np.moveaxis(DEM_coords, 0, 2)
 
+# Loop over time range with 6-minute intervals
 for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
+    # Convert numpy datetime64 to datetime.datetime and extract time components
     dt_time = dt_time.astype(dt.datetime)
     yy, mm, dd, hh, MM = dt_time.year, dt_time.month, dt_time.day, dt_time.hour, dt_time.minute
     IRIS_time = (yy, mm, dd, hh, MM)
@@ -97,10 +134,12 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         
     # ============================= INDIVIDUAL PPI COMPUTATION =============================
 
+    # Loop over radar files
     i = 0
     for n in range(0, len(paths), 2 if VOLUME != "VOLA" else 1):
         try:
-            # Compute PPI data (only VOL-B if height <= 2000)
+            # Transform polar to cartesian coordinates for each PPI according 
+            # to the volume type used
             if VOLUME == 'VOLA' or VOLUME == 'VOLB':
                 ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
                                         DEM_values, DEM_coords, 
@@ -116,13 +155,14 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
             # Create temorary array for storing each radar individual products
             if i==0:
-                CAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
-                QICAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
-                ELEVCAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
-                LUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
-                QILUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
-                ELEVLUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan
+                CAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar CAPPI reflectivity
+                QICAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar CAPPI QI
+                ELEVCAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan # Single-radar CAPPI ELEV
+                LUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan       # Single-radar LUE reflectivity
+                QILUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar LUE QI
+                ELEVLUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar LUE ELEV
 
+                # Resample DEM to match radar grid
                 xgrid, ygrid = ds.x.values, ds.y.values
                 x_min, x_max = xgrid.min(), xgrid.max()
                 y_min, y_max = ygrid.min(), ygrid.max()
@@ -139,7 +179,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                     resampling=Resampling.nearest
                 )
             
-            # Compute and store individual CAPPI (and QI)
+            # Apply height-to-CAPPI quality index
             ds_CAPPI = ds.copy(deep=True)
             for e in range(len(ds.elev.values)):
                 ds_e = ds_CAPPI.isel(elev=e)
@@ -148,12 +188,14 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
                 QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
                 ds_CAPPI["QI"].values[e, ...] = QI_e
+            
+            # Compute and store single-radar CAPPI products
             CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
             CAPPI_ind_rad[i, ...] = CAPPI
             QICAPPI_ind_rad[i, ...] = QI
             ELEVCAPPI_ind_rad[i, ...] = ELEV
 
-            # Compute and store individual close to LUEain products
+            # Apply height-to-ground quality index
             ds_LUE = ds.copy(deep=True)
             for e in range(len(ds.elev.values)):
                 ds_e = ds_LUE.isel(elev=e)
@@ -162,6 +204,8 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 H_to_ground = ds_e.H.values - DEM_resampled
                 QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
                 ds_LUE["QI"].values[e, ...] = QI_e
+            
+            # Compute and store single-radar LUE products
             LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
             LUE_ind_rad[i, ...] = LUE
             QILUE_ind_rad[i, ...] = QI
@@ -172,12 +216,13 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
         i += 1
 
-
+    # Iterate over composite types
     for comp_type in ["MAXZ", "MAXQI"]:
-        filedate = os.path.splitext(os.path.basename(paths[0]))[0][3:-2]
+        filedate = dt_time.strftime('%y%m%d%H%M') # File date string
 
         # =================================== CAPPI COMPOSITES ===================================
 
+        # Compute CAPPI composite
         Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(CAPPI_ind_rad, QICAPPI_ind_rad, 
                                                ELEVCAPPI_ind_rad, comp_type)
 
@@ -186,8 +231,9 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
                      filedate, prod_type, comp_type, product_save_dir, VOLUME)
 
-        # ============================= CLOSE TO LUEAIN COMPOSITES =============================
+        # ==================================== LUE COMPOSITES ====================================
 
+        # Compute LUE composite
         Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(LUE_ind_rad, QILUE_ind_rad, 
                                                ELEVLUE_ind_rad, comp_type)
 
@@ -196,7 +242,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
                      filedate, prod_type, comp_type, product_save_dir, VOLUME)
 
-    # End and store time of execution
+    # End and print time of execution
     t1 = time()
     T = t1 - t0
     print(f"Compilation time: {int(T/60)}m{int(T%60)}s")

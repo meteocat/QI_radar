@@ -8,6 +8,7 @@ import cartopy as crtpy
 import sys, os
 from pyproj import Transformer
 
+# ================================ Define colormaps and values for plotting ================================
 bounds = [-10, -5, 0, 5, 10, 15, 20, 25, 30,
           35, 40, 45, 50, 55, 60, 65]
 colors = [
@@ -57,7 +58,8 @@ colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#d62728"]  # Blue, Green, Orange, Re
 labels = ['CDV', 'PBE', 'PDA', 'LMI']
 which_cmap = mcolors.ListedColormap(colors)
 # which_norm = mcolors.BoundaryNorm(boundaries=np.arange(5)-0.5, ncolors=4)
-to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
+
+# ================================== Define file paths and load data ==================================
 
 if sys.argv[1] == "s":
   save = True
@@ -69,19 +71,24 @@ else:
 
 filename = os.path.basename(COMP_path)[:-3]
 
+# ============================== Load composite data and radar positions ==============================
+
 ds = xr.open_dataset(COMP_path, engine="scipy")
 Z_comp = ds.Z.values
 QI_comp = ds.QI.values
 which_rad = ds.RAD.values
 ELEV = ds.ELEV.values
 
+to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
 rad_pos = np.array([[41.60192013,  1.40283002],
                     [41.37334999,  1.88197011],
                     [41.8888201 ,  2.99717009],
                     [41.09175006,  0.86348003]])
 rad_x, rad_y = to_utm.transform(rad_pos[:,1], rad_pos[:,0])
 
-# --- NEW FIGURE LAYOUT WITH GRIDSPEC ---
+# =========================================== Create plots ===========================================
+
+# Create figure and subplots with custom layout
 fig = plt.figure(figsize=(20,10))
 gs = gridspec.GridSpec(
     2, 3, figure=fig,
@@ -104,7 +111,7 @@ ax_br = fig.add_subplot(gs[1, 2], projection=proj)  # bottom-right small
 
 axes_all = [ax_big, ax_tl, ax_bl, ax_br, ax_tr]
 
-shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
+shape_file = "path/to/shapefile.shp"
 comarques = gpd.read_file(shape_file)
 comarques = comarques.to_crs(epsg=25831)
 

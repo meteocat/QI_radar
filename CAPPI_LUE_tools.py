@@ -1,62 +1,60 @@
 import numpy as np
 
-def distance_weighting(dist):
-    H = 1000
-
-    QH = (np.exp(-dist**2/H**2)) ** (1/3)
-    QH[dist < 0] = 0
+def make_CAPPI(ds, CAPPI_H: int):
+    ''' Create a CAPPI (Constant Altitude Plan Position Indicator) from an individual radar dataset.
     
-    return QH
+    :param ds: xarray dataset containing reflectivity, quality and elevation data for each PPI and for a specific time step
+    :param CAPPI_H: Desired height of the CAPPI in meters
 
+    :return: CAPPI, QI, and ELEV arrays representing the reflectivity, quality index, and elevation used for each pixel in the CAPPI
+    '''
 
-def make_CAPPI(ds, CAPPI_H):
+    # Initialize CAPPI, QI and ELEV arrays with NaN values
     CAPPI = np.ones_like(ds.isel(elev=0).Z) * np.nan
     QI = np.ones_like(ds.isel(elev=0).Z) * np.nan
     ELEV = np.ones_like(ds.isel(elev=0).Z) * np.nan
 
+    # Define a quality index threshold to determine if a pixel's value is reliable 
+    # or if it should be replaced by values from other elevations
     QI_th = 0.1
 
-    # =========================== VALUES "INSIDE" HIGHEST BEAM ===========================
+    # ===================================== VALUES IN ZONE 1 =====================================
+    # Select the highest elevation dataset
     e = len(ds.elev.values)-1
-    # print(f'Inner layer: e={ds.elev.values[e]}')
     ds_e = ds.isel(elev=e)
 
+    # Extract reflectivity and quality index values for the highest elevation
     Z_e = ds_e.Z.values
     QI_e = ds_e.QI.values
 
-    # region closer to radar
+    # Define region closer to radar by checking if height to ground is lower than CAPPI_H
     H_bot = ds_e.H.values
     reg = H_bot < CAPPI_H
 
-    # project Z & QI and adjust QI weighted by vertical distance
-    # dis_bot = CAPPI_H - H_bot
-    # w_dis_bot = distance_weighting(dis_bot)
+    # Define CAPPI, QI and ELEV values in the region closer to radar with the highest elevation values
     CAPPI[reg] = Z_e[reg]
     QI[reg] = QI_e[reg]
     ELEV[reg] = e
 
-    # handle NaN values not projected, it projects from the beam below with available data
-    while np.any(QI[reg] <= QI_th) and e > 0:        
-        NaN_reg = reg * (QI <= QI_th)
+    # Handle values projected with low quality, it projects from the beam below with available data
+    while np.any(QI[reg] <= QI_th) and e > 0:
+        LowQ_reg = reg * (QI <= QI_th) # Define low quality region
 
-        e -= 1
-        # print(f'Inner layer: e={ds.elev.values[e]}')
+        e -= 1 # Move to the next elevation below
+        
+        # Select dataset for the new elevation and extract reflectivity and quality index values
         ds_e = ds.isel(elev=e)
         Z_e = ds_e.Z.values
         QI_e = ds_e.QI.values
 
-        H_bot = ds_e.H.values
-        # dis_bot = CAPPI_H - H_bot
-        # w_dis_bot = distance_weighting(dis_bot)
-        CAPPI[NaN_reg] = Z_e[NaN_reg]
-        QI[NaN_reg] = QI_e[NaN_reg]
-        ELEV[NaN_reg] = e
+        # Define new region closer to radar with the new elevation
+        CAPPI[LowQ_reg] = Z_e[LowQ_reg]
+        QI[LowQ_reg] = QI_e[LowQ_reg]
+        ELEV[LowQ_reg] = e
 
-    # =========================== VALUES BETWEEN BEAMS ===========================
-    # iterating through beams, from highest to lowest
+    # ===================================== VALUES IN ZONE 2 =====================================
+    # Iterating through beam elevations, from highest to lowest
     for e in range(len(ds.elev.values)-1, 0, -1):
-        # print(f"\nInter layer: {ds.elev.values[e]}-{ds.elev.values[e-1]}")
-
         # Select upper and lower beams
         ds_top, ds_bot = ds.isel(elev=e), ds.isel(elev=e-1)
         Z_top, Z_bot = ds_top.Z.values, ds_bot.Z.values
@@ -66,116 +64,114 @@ def make_CAPPI(ds, CAPPI_H):
         H_top, H_bot = ds_top.H.values, ds_bot.H.values
         reg = (H_top > CAPPI_H) * (H_bot < CAPPI_H)
 
-        # Compute Z & QI in CAPPI level
-        # 1. Assign Z & QI to variables
+        # Assign Z & QI to variables
         Z_top, Z_bot = Z_top[reg], Z_bot[reg]
         QI_top, QI_bot = QI_top[reg], QI_bot[reg]
 
-        # 2. Compute Z weighting with top and bottom values
+        # Compute Z weighting with top and bottom values
         numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
         denominator = np.nansum([QI_top, QI_bot], axis=0)
         denominator[denominator==0] = np.nan # Assign NaN values where QI = 0 in both top and bottom
         CAPPI_reg = numerator / denominator
 
-        # 3. Handle QI = 0 by doing mean
+        # Handle QI = 0 by doing mean
         num = np.nansum([Z_top, Z_bot], axis=0)
         CAPPI_reg[np.isnan(denominator)] = num[np.isnan(denominator)] / 2
 
-        # 4. Compute new QI by doing mean
+        # Compute new QI by doing mean
         numerator = np.nansum([QI_top, QI_bot], axis=0)
         QI_reg =  numerator / 2
 
         # Assign to new array
         CAPPI[reg] = CAPPI_reg
         QI[reg] = QI_reg
-        ELEV[reg] = ds.elev.values[e-1]
+        ELEV[reg] = ds.elev.values[e-1] # For elevation, assign the lower beam
 
-        # Handle QI == 0 values
+        # Handle values with low quality, it projects from the pair of beams above
+        # and below with available data
         e_top, e_bot = np.copy(e), np.copy(e-1)
+        # It loops until there are no more low quality values in the region or until
+        # it reaches the highest or lowest elevation available
         while np.any(QI[reg] <= QI_th) and (e_top < len(ds.elev.values)-1 or e_bot > 0):
-            NaN_reg = reg * (QI <= QI_th)
+            LowQ_reg = reg * (QI <= QI_th) # Define low quality region
 
+            # Move to the next pair of beams above and below if available
             e_top += 1 if e_top < len(ds.elev.values)-1 else 0
             e_bot -= 1 if e_bot > 0 else 0
-            # print(f"\t{ds.elev.values[e_top]}-{ds.elev.values[e_bot]}")
             
             # Repeat same process as before for each recalculated pair of elevations
-    
             ds_top, ds_bot = ds.isel(elev=e_top), ds.isel(elev=e_bot)
             Z_top, Z_bot = ds_top.Z.values, ds_bot.Z.values
             QI_top, QI_bot = ds_top.QI.values, ds_bot.QI.values
-            
-            Z_top, Z_bot = ds_top.Z.values[NaN_reg], ds_bot.Z.values[NaN_reg]
-            QI_top, QI_bot = QI_top[NaN_reg], QI_bot[NaN_reg]
-            
-            # 2. Compute Z weighting with top and bottom values
+
+            Z_top, Z_bot = ds_top.Z.values[LowQ_reg], ds_bot.Z.values[LowQ_reg]
+            QI_top, QI_bot = QI_top[LowQ_reg], QI_bot[LowQ_reg]
+
             numerator = np.nansum([Z_top*QI_top, Z_bot*QI_bot], axis=0)
             denominator = np.nansum([QI_top, QI_bot], axis=0)
-            denominator[denominator==0] = np.nan # Assign NaN values where QI = 0 in both top and bottom
+            denominator[denominator==0] = np.nan
             CAPPI_reg = numerator / denominator
 
-            # 3. Handle QI = 0 by doing mean
             num = np.nansum([Z_top, Z_bot], axis=0)
             CAPPI_reg[np.isnan(denominator)] = num[np.isnan(denominator)] / 2
 
-            # 4. Compute new QI by doing mean
             numerator = np.nansum([QI_top, QI_bot], axis=0)
             QI_reg =  numerator / 2
 
-            CAPPI[NaN_reg] = CAPPI_reg
-            QI[NaN_reg] = QI_reg
-            ELEV[NaN_reg] = ds.elev.values[e_bot]
-    
-    # Uncomment to check if there are any NaN values in the region
-    # reg_1 = ds.isel(elev=-1).H.values > CAPPI_H
-    # reg_2 = ds.isel(elev=0).H.values < CAPPI_H
-    # # print(np.any(np.isnan(CAPPI[reg_1*reg_2])))
+            CAPPI[LowQ_reg] = CAPPI_reg
+            QI[LowQ_reg] = QI_reg
+            ELEV[LowQ_reg] = ds.elev.values[e_bot]
 
-    # =========================== VALUES "OUTSIDE" LOWEST BEAM ===========================
+    # ===================================== VALUES IN ZONE 3 =====================================
+    # For the region further from the radar, we will assign values from the highest
+    # elevation with available data
     e = 0
-    # print(f"\nOuter layer: {ds.elev.values[e]}")
     ds_e = ds.isel(elev=e)
-
     Z_e = ds_e.Z.values
     QI_e = ds_e.QI.values
 
-    # region further from the radar
+    # Define region further from radar by checking if height to ground is higher than
+    # CAPPI_H and there is data available
     H_top = ds_e.H.values
     reg = (H_top > CAPPI_H) * (np.isnan(ds_e.Z.values) == 0)
 
-    # project Z & QI and adjust QI
-    # dis_top = H_top - CAPPI_H
-    # w_dis_top = distance_weighting(dis_top)
+    # Set CAPPI, QI and ELEV values
     CAPPI[reg] = Z_e[reg]
     QI[reg] = QI_e[reg]
     ELEV[reg] = e
 
-    # handle QI=0 values projected, it projects from the beam above with available data
-    # print()
+    # Handle values projected with low quality, it projects from the beam above with available data
     while np.any(QI[reg] <= QI_th) and e < len(ds.elev.values)-1:
-        NaN_reg = reg * (QI <= QI_th)
+        LowQ_reg = reg * (QI <= QI_th) # Define low quality region
 
+        # Move to the next elevation above
         e += 1
-        # print(f"Outer layer: {ds.elev.values[e]}")
         ds_e = ds.isel(elev=e)
-
         Z_e = ds_e.Z.values
         QI_e = ds_e.QI.values
 
-        NaN_reg_improv = NaN_reg * (ds_e.QI.values > QI)
+        # Define new region where quality is imporved
+        BetterQ_reg = LowQ_reg * (ds_e.QI.values > QI)
 
-        # H_top = ds_e.H.values
-        # dis_top = H_top - CAPPI_H
-        # w_dis_top = distance_weighting(dis_top)
-        CAPPI[NaN_reg_improv] = Z_e[NaN_reg_improv]
-        QI[NaN_reg_improv] = QI_e[NaN_reg_improv]
-        ELEV[NaN_reg_improv] = e
+        # Set CAPPI, QI and ELEV values in the new region
+        CAPPI[BetterQ_reg] = Z_e[BetterQ_reg]
+        QI[BetterQ_reg] = QI_e[BetterQ_reg]
+        ELEV[BetterQ_reg] = e
 
     return CAPPI, QI, ELEV
 
 
 def make_LUE(ds, DEM_resampled):
-    # Define bad quality threshold
+    ''' Create a LUE (Lowest Usable Elevation) from an individual radar dataset by selecting the lowest elevation with good quality index for each pixel.
+    
+    :param ds: xarray dataset containing reflectivity, quality and elevation data for each PPI and for a specific time step
+    :param DEM_resampled: 2D array of the DEM resampled to the radar grid, representing the height to ground for each pixel
+
+    :return: LUE, QI, H and ELEV arrays representing the reflectivity, quality index, height to ground and elevation used for each pixel in the LUE
+    '''
+
+    # Define a quality index threshold to determine if a pixel's value is reliable 
+    # or if it should be replaced by values from other elevations
     QI_th = 0.1
 
     # Extract lowest elevation variables (reflectivity, height to ground and quality index)
@@ -183,31 +179,31 @@ def make_LUE(ds, DEM_resampled):
     H = ds.isel(elev=0).H.values - DEM_resampled
     QI = ds.isel(elev=0).QI.values
 
-    # Initialize the elevation array which will store what PPI has been used
+    # Initialize the elevation array which will store what PPI elevation has been used
     ELEV = np.ones_like(LUE) * np.nan
     ELEV[np.isnan(LUE)==0] = ds.elev.values[0]
 
-    # Iterate through all elevations while there is a quality index lower than threshold
-    e = 1
+    # Iterate through all elevations until there is not a quality index lower than threshold or
+    # until it reaches the highest elevation available
+    e = 1 # Starts from the second elevation
     while (e < len(ds.elev.values)) and np.any(QI <= QI_th):
-        # Assign new variables for current elevation and weight QI with height
+        # Assign new variables for current elevation
         Z_e = ds.isel(elev=e).Z.values
         QI_e = ds.isel(elev=e).QI.values
         H_e = ds.isel(elev=e).H.values - DEM_resampled
 
-        # Pixels where QI <= QI_th and Z_e > Z will be redefined with current elevation on all arrays
+        # Pixels that meet the following conditions will be redefined:
+        # 1. QI <= QI_th: The pixel has low quality index and needs to be redefined
+        # 2. QI_e > QI_th: The above elevation has good quality index
+        # 3. Z_e > LUE: The above pixel has higher reflectivity
         redef_reg = (QI <= QI_th) * (QI_e > QI_th) * (Z_e > LUE)
+
+        # Pixels are redefined with the above elevation values
         ELEV[redef_reg] = ds.elev.values[e]
         H[redef_reg] = H_e[redef_reg]
         LUE[redef_reg] = Z_e[redef_reg]
         QI[redef_reg] = QI_e[redef_reg]
 
         e += 1
-
-    # Finally, if there are still QI <= QI_th, the lowest elevation will be used
-    # ELEV[QI <= QI_th] = ds.elev.values[0]
-    # H[QI <= QI_th] = ds.isel(elev=0).H.values[QI <= QI_th] - DEM_resampled[QI <= QI_th]
-    # LUE[QI <= QI_th] = ds.isel(elev=0).Z.values[QI <= QI_th]
-    # QI[QI <= QI_th] = ds.isel(elev=0).QI.values[QI <= QI_th] * distance_weighting(H)[QI <= QI_th]
 
     return LUE, QI, H, ELEV
