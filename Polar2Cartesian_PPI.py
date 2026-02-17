@@ -449,7 +449,7 @@ def single_PPI(ds, TOP12_clim_path, DEM_values, DEM_coords, instr_var, dl=1000):
     return Z_PPI_cart, QI_PPI_cart, altitudes, xgrid, ygrid
 
 
-def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000, save_dir="", sweeps=[]):
+def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000, save_dir="", sweeps=[], VOLUME_NAME="unknown"):
     ''' Process all PPI radar sweeps in an IRIS raw file, compute the quality index and transform them to Cartesian coordinates.
     
     :param IRIS_path: Path to the raw IRIS radar file
@@ -459,6 +459,7 @@ def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000,
     :param dl: Cartesian grid resolution (meters), default set to 1000 m
     :param save_dir: Directory to save the output NetCDF file, default set to current directory
     :param sweeps: List of sweep indices to process, default set to all sweeps
+    :param VOLUME_NAME: Volume name to be included in the output dataset attributes, default set to 'unknown'
     
     :return: xarray Dataset with Cartesian reflectivity and Quality Index for all sweeps
     '''
@@ -515,6 +516,12 @@ def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000,
             "y": ygrid,
         },
     )
+    result.attrs.update({
+        "title": "Cartesian radar grid",
+        "source": "Computed from polar radar volume",
+        "volume_scan": VOLUME_NAME,
+        "created": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+    })
 
     result.to_netcdf(f"{save_dir}/{file_name}.nc", engine="scipy")
     print()

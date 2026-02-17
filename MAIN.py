@@ -115,20 +115,22 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
     yy, mm, dd, hh, MM = dt_time.year, dt_time.month, dt_time.day, dt_time.hour, dt_time.minute
     IRIS_time = (yy, mm, dd, hh, MM)
 
-    # Clear folder where temporal PPIs will be saved
+    # Search IRIS file paths
+    if VOLUME == 'VOLA':
+        paths = search_long_range(IRIS_time, IRIS_dir)
+    elif VOLUME == 'VOLB':
+        paths = search_short_range(IRIS_time, IRIS_dir)[::2]
+    elif VOLUME == 'VOLBC':
+        paths = search_short_range(IRIS_time, IRIS_dir)
+
+    # Clear files not corresponding to the current time step in the PPI save directory
+    keep_set = set(f"{p[-23:-8]}.nc" for p in paths)
     for filename in os.listdir(PPI_save_dir):
         file_path = os.path.join(PPI_save_dir, filename)
-        try:
-            if os.path.isfile(file_path):
+        # Only process files (not subdirectories)
+        if os.path.isfile(file_path):
+            if filename not in keep_set or False: # --- IGNORE --- Change to "True" to delete all
                 os.remove(file_path)
-        except Exception as e:
-            print(f"Error deleting {file_path}: {e}")
-
-    # Search IRIS file paths
-    if VOLUME != 'VOLA':
-        paths = search_short_range(IRIS_time, IRIS_dir)
-    else:
-        paths = search_long_range(IRIS_time, IRIS_dir)
 
     # Define initial time of execution
     t0 = time()
@@ -137,21 +139,39 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
     # Loop over radar files
     i = 0
-    for n in range(0, len(paths), 2 if VOLUME != "VOLA" else 1):
+    for n in range(0, len(paths), 2 if VOLUME == "VOLBC" else 1):
         try:
             # Transform polar to cartesian coordinates for each PPI according 
             # to the volume type used
             if VOLUME == 'VOLA' or VOLUME == 'VOLB':
-                ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                        DEM_values, DEM_coords, 
-                                        dl=dl, save_dir=PPI_save_dir)
+                new_path = paths[n][-23:-8] + ".nc"
+                if not os.path.exists(f"{PPI_save_dir}/{new_path}"):
+                    ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                            DEM_values, DEM_coords, 
+                                            dl=dl, save_dir=PPI_save_dir,
+                                            VOLUME_NAME=VOLUME)
+                else:
+                    ds = xr.open_dataset(f"{PPI_save_dir}/{new_path}")
+
             elif VOLUME == 'VOLBC':
-                ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                            DEM_values, DEM_coords, 
-                                            dl=dl, save_dir=PPI_save_dir)
-                ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
-                                            DEM_values, DEM_coords, 
-                                            dl=dl, save_dir=PPI_save_dir)
+                new_path_B = paths[n][-23:-8] + ".nc"
+                if not os.path.exists(f"{PPI_save_dir}/{new_path_B}"):
+                    ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                                DEM_values, DEM_coords, 
+                                                dl=dl, save_dir=PPI_save_dir,
+                                                VOLUME_NAME='VOLB')
+                else:
+                    ds_VOLB = xr.open_dataset(f"{PPI_save_dir}/{new_path_B}")
+                
+                new_path_C = paths[n+1][-23:-8] + ".nc"
+                if not os.path.exists(f"{PPI_save_dir}/{new_path_C}"):
+                    ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
+                                                DEM_values, DEM_coords, 
+                                                dl=dl, save_dir=PPI_save_dir,
+                                                VOLUME_NAME='VOLC')
+                else:
+                    ds_VOLC = xr.open_dataset(f"{PPI_save_dir}/{new_path_C}")
+                    
                 ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
 
             # Create temorary array for storing each radar individual products
