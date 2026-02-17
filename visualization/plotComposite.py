@@ -111,7 +111,7 @@ ax_br = fig.add_subplot(gs[1, 2], projection=proj)  # bottom-right small
 
 axes_all = [ax_big, ax_tl, ax_bl, ax_br, ax_tr]
 
-shape_file = "path/to/shapefile.shp"
+shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
 comarques = gpd.read_file(shape_file)
 comarques = comarques.to_crs(epsg=25831)
 

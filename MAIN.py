@@ -88,6 +88,7 @@ config = load_config("config.txt")
 init_dt = config["init_dt"]
 fin_dt = config["fin_dt"]
 VOLUME = config["VOLUME"]
+COMP_types = config["COMP_types"]
 CAPPI_H = config["CAPPI_H"]
 dl = config["dl"]
 
@@ -217,7 +218,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         i += 1
 
     # Iterate over composite types
-    for comp_type in ["MAXZ", "MAXQI"]:
+    for comp_type in COMP_types:
         filedate = dt_time.strftime('%y%m%d%H%M') # File date string
 
         # =================================== CAPPI COMPOSITES ===================================

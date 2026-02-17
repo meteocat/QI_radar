@@ -10,6 +10,9 @@
 ================ VOLUME SCAN USED ["VOLA", "VOLB" OR "VOLBC"] =================
 VOLB
 
+============== COMPOSITE TYPES ["MAXZ", "MAXQI" AND "MAXQI_dev"] ==============
+MAXZ, MAXQI
+
 ============================ CAPPI HEIGHT (meters) ============================
 1000
 

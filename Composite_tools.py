@@ -50,4 +50,16 @@ def composite(Z_ind_rad, QI_ind_rad, ELEV_ind_rad, comp_type="MAXZ"):
             ELEV_COMP[reg_radQImax] = ELEV_ind_rad[nrad, ...][reg_radQImax]
             RAD_COMP[reg_radQImax] = nrad
     
+    elif comp_type == "MAXQI_dev":
+        # Iterate through each radar
+        for nrad in range(len(Z_ind_rad[:,0,0])):
+            # Compute region where Q is max.
+            reg_radQImax = QI_ind_rad[nrad, ...] > np.nan_to_num(QI_COMP, nan=-np.inf)
+
+            # Assign radar data where Q is max.
+            Z_COMP[reg_radQImax] = Z_ind_rad[nrad, ...][reg_radQImax]
+            QI_COMP[reg_radQImax] = QI_ind_rad[nrad, ...][reg_radQImax]
+            ELEV_COMP[reg_radQImax] = ELEV_ind_rad[nrad, ...][reg_radQImax]
+            RAD_COMP[reg_radQImax] = nrad
+    
     return Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP
