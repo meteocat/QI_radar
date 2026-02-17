@@ -49,8 +49,8 @@ def load_config(config_file: str) -> dict:
 
         elif l == 14: 
             config["COMP_types"] = line.strip().split(", ")
-            if not all(comp in ["MAXZ", "MAXQI", "MAXQI_dev"] for comp in config["COMP_types"]):
-                raise ValueError("COMP_types in config.txt must be a comma-separated list of 'MAXZ', 'MAXQI' and/or 'MAXQI_dev'")
+            if not all(comp in ["MAXZ", "MAXQI", "MAXQCOND"] for comp in config["COMP_types"]):
+                raise ValueError("COMP_types in config.txt must be a comma-separated list of 'MAXZ', 'MAXQI' and/or 'MAXQCOND'")
 
         elif l == 17: config["CAPPI_H"] = line.strip()
         elif l == 20: 
