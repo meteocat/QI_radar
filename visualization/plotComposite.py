@@ -7,6 +7,7 @@ import geopandas as gpd
 import cartopy as crtpy
 import sys, os
 from pyproj import Transformer
+from matplotlib.widgets import Button
 
 # ================================ Define colormaps and values for plotting ================================
 bounds = [-10, -5, 0, 5, 10, 15, 20, 25, 30,
@@ -29,6 +30,13 @@ colors = [
     "#9854c6",  # 65
 ]
 rad_cmap = mcolors.ListedColormap(colors)
+rad_norm = mcolors.BoundaryNorm(bounds, rad_cmap.N)
+
+# Alternative bounds starting from 0 dBZ (skipping first color and bounds)
+bounds_zero = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65]
+colors_zero = colors[3:]  # Skip the gray color for -10 to 0 dBZ
+rad_cmap_zero = mcolors.ListedColormap(colors_zero)
+rad_norm_zero = mcolors.BoundaryNorm(bounds_zero, rad_cmap_zero.N)
 
 def make_discrete_cmap(cmap, N):
     """
@@ -90,12 +98,15 @@ rad_x, rad_y = to_utm.transform(rad_pos[:,1], rad_pos[:,0])
 
 # Create figure and subplots with custom layout
 fig = plt.figure(figsize=(20,10))
+
+# State variable for colormap bounds toggle
+colormap_state = {'use_zero_start': False}
 gs = gridspec.GridSpec(
     2, 3, figure=fig,
     width_ratios=[5, 2.5, 2.5],   # big left + two small columns
     height_ratios=[2, 2],
     left=0.03, right=0.97, wspace=0.1, hspace=-0.1,
-    top=0.95, bottom=0.05
+    top=0.92, bottom=0.05
 )
 
 proj = crtpy.crs.UTM(zone=31)
@@ -128,9 +139,11 @@ for axis in axes_all:
 # BIG: old ax[0,0] -> Z composite
 Z_comp_plot = np.copy(Z_comp)
 Z_comp_plot[Z_comp == -32] = np.nan
-pc = ax_big.pcolormesh(ds.x, ds.y, Z_comp_plot, vmin=-10, vmax=65, cmap=rad_cmap)
-fig.colorbar(pc, ax=ax_big, fraction=0.035, pad=0.01)
+pc = ax_big.pcolormesh(ds.x, ds.y, Z_comp_plot, norm=rad_norm, cmap=rad_cmap)
+cbar_big = fig.colorbar(pc, ax=ax_big, fraction=0.035, pad=0.01, boundaries=bounds, ticks=bounds)
 ax_big.set_title(filename)
+pc_handle = pc  # Store for later update
+Z_comp_original = np.copy(Z_comp)  # Store original data for toggling
 
 # SMALL top-left: old ax[0,1] -> which radar
 pc = ax_tl.pcolormesh(ds.x, ds.y, which_rad, cmap=which_cmap)
@@ -172,4 +185,37 @@ for axis in [ax_big, ax_tl, ax_bl, ax_br, ax_tr]:
 if save:
   plt.savefig(f"{SAVE_dir}/{filename}.png", dpi=200, bbox_inches="tight")
 else:
+  # Add toggle button for colormap bounds only when not saving (inline plotting)
+  def toggle_colormap_bounds(event):
+    """Toggle between full bounds (-10 to 65) and zero-start bounds (5 to 65)
+    Also toggles NaN handling: -32 dBZ to NaN vs values < 5 dBZ to NaN"""
+    colormap_state['use_zero_start'] = not colormap_state['use_zero_start']
+    
+    if colormap_state['use_zero_start']:
+      # Show only from 5 dBZ upwards, set values < 5 dBZ to NaN
+      Z_comp_plot_new = np.copy(Z_comp_original)
+      Z_comp_plot_new[Z_comp_original < 5] = np.nan
+      pc_handle.set_array(Z_comp_plot_new.ravel())
+      pc_handle.set_cmap(rad_cmap_zero)
+      pc_handle.set_norm(rad_norm_zero)
+      pc_handle.set_clim(vmin=5, vmax=65)
+      button_toggle.label.set_text('-10\ndBZ')
+    else:
+      # Show from -10 dBZ (all echoes), set -32 to NaN
+      Z_comp_plot_new = np.copy(Z_comp_original)
+      Z_comp_plot_new[Z_comp_original == -32] = np.nan
+      pc_handle.set_array(Z_comp_plot_new.ravel())
+      pc_handle.set_cmap(rad_cmap)
+      pc_handle.set_norm(rad_norm)
+      pc_handle.set_clim(vmin=-10, vmax=65)
+      button_toggle.label.set_text('5\ndBZ')
+    
+    fig.canvas.draw_idle()
+  
+  # Create button
+  ax_button = fig.add_axes([0.455, 0.16, 0.016, 0.03]) # left, bottom, width, height
+  button_toggle = Button(ax_button, '5\ndBZ')
+  button_toggle.label.set_fontsize(10)
+  button_toggle.on_clicked(toggle_colormap_bounds)
+  
   plt.show()
