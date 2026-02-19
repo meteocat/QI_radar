@@ -43,6 +43,7 @@ The pipeline requires the following input data to be configured in a new configu
 - **Configuration File**: `config.txt` - A text file specifying processing parameters, including:
   - Initial and final UTC times for processing (note that the final time is not processed).
   - Volume scan type (VOLA, VOLB, or VOLBC). Choose according to the desired products.
+  - Product type to compute: Lowest Usable Elevation (LUE) and/or Constant Altitude Plan Position Indicator (CAPPI).
   - Composite types to compute (MAXZ, MAXQI and/or MAXQI_dev). Each type has a different radar priorization methodology where more than one radar detects reflectivity.
   - CAPPI height in meters.
   - Cartesian grid resolution in meters. Note that modifying this parameter will significantly affect processing time.

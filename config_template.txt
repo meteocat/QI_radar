@@ -10,7 +10,10 @@
 ================ VOLUME SCAN USED ["VOLA", "VOLB" OR "VOLBC"] =================
 VOLB
 
-=============== COMPOSITE TYPES ["MAXZ", "MAXQI" AND "MAXQCOND"] ==============
+==================== PRODUCT TYPES ["LUE" AND/OR "CAPPI"] =====================
+LUE, CAPPI
+
+============= COMPOSITE TYPES ["MAXZ", "MAXQI" AND/OR "MAXQCOND"] =============
 MAXZ, MAXQI
 
 ============================ CAPPI HEIGHT (meters) ============================

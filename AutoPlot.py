@@ -67,7 +67,7 @@ which_cmap = mcolors.ListedColormap(colors)
 
 # ================================== Plotting function ==================================
 
-def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
+def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = False):
     """Generate and save the composite figure from a netCDF file.
 
     Parameters
@@ -141,16 +141,16 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
         axis.set_ylim(y_vals.min(), y_vals.max())
 
     pc_big = ax_big.pcolormesh(x_vals, y_vals, Z_comp_plot, norm=norm, cmap=cmap)
-    fig.colorbar(pc_big, ax=ax_big, fraction=0.035, pad=0.01,
+    fig.colorbar(pc_big, ax=ax_big, fraction=0.03, pad=0.01,
                  boundaries=bounds_used, ticks=bounds_used)
-    ax_big.set_title(filename)
+    ax_big.set_title("REFLECTIVITY (dBZ)", fontsize=14)
 
     pc = ax_tl.pcolormesh(x_vals, y_vals, which_rad, cmap=which_cmap)
     cbar = fig.colorbar(pc, ax=ax_tl,
                         ticks=np.arange(0.75/2, 3, 0.75),
                         fraction=0.03, pad=0.01)
     cbar.ax.set_yticklabels(labels)
-    ax_tl.set_title("Which radar data is selected")
+    ax_tl.set_title("RADAR SELECTED")
 
     QI_DET = np.copy(QI_comp)
     QI_UNDET = np.copy(QI_comp)
@@ -159,11 +159,11 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
 
     pc = ax_bl.pcolormesh(x_vals, y_vals, QI_DET, vmin=0, vmax=1, cmap=cmap_QI)
     fig.colorbar(pc, ax=ax_bl, fraction=0.03, pad=0.01)
-    ax_bl.set_title("QI DETECTED composite")
+    ax_bl.set_title("QUALITY DETECTED")
 
     pc = ax_br.pcolormesh(x_vals, y_vals, QI_UNDET, vmin=0, vmax=1, cmap=cmap_QI)
     fig.colorbar(pc, ax=ax_br, fraction=0.03, pad=0.01)
-    ax_br.set_title("QI UNDETECTED composite")
+    ax_br.set_title("QUALITY UNDETECTED")
 
     pc = ax_tr.pcolormesh(x_vals, y_vals, ELEV, vmin=0.6, vmax=3, cmap=cmap_elev)
     tick_positions = np.arange(len(values)) + 0.5
@@ -171,7 +171,7 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
                       ax=ax_tr, ticks=tick_positions,
                       fraction=0.03, pad=0.01)
     cb.set_ticklabels([str(v) for v in values])
-    ax_tr.set_title("Elevation (deg)")
+    ax_tr.set_title("ELEVATION (deg)")
 
     for axis in [ax_big, ax_tl, ax_bl, ax_br, ax_tr]:
         axis.scatter(rad_x, rad_y, facecolors="white",
