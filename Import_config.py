@@ -45,12 +45,12 @@ def load_config(config_file: str) -> dict:
         elif l == 11: 
             config["VOLUME"] = line.strip()
             if config["VOLUME"] not in ['VOLA', 'VOLB', 'VOLBC']:
-                raise ValueError("VOLUME in config.txt must be one of: 'VOLA', 'VOLB', 'VOLBC'")
+                raise ValueError("VOLUME SCAN USED in config.txt must be one of: 'VOLA', 'VOLB', 'VOLBC'")
 
         elif l == 14: 
             config["COMP_types"] = line.strip().split(", ")
             if not all(comp in ["MAXZ", "MAXQI", "MAXQCOND"] for comp in config["COMP_types"]):
-                raise ValueError("COMP_types in config.txt must be a comma-separated list of 'MAXZ', 'MAXQI' and/or 'MAXQCOND'")
+                raise ValueError("COMPOSITE TYPES in config.txt must be a comma-separated list of 'MAXZ', 'MAXQI' and/or 'MAXQCOND'")
 
         elif l == 17: config["CAPPI_H"] = line.strip()
         elif l == 20: 
@@ -64,17 +64,26 @@ def load_config(config_file: str) -> dict:
         elif l == 23: 
             config["IRIS_dir"] = line.strip()
             if not os.path.exists(config["IRIS_dir"]) or len(os.listdir(config["IRIS_dir"])) == 0:
-                raise ValueError("IRIS directory path does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
+                raise ValueError("RAW DATA DIRECTORY does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
         
         elif l == 26: 
             config["product_save_dir"] = line.strip()
             try:
                 os.makedirs(config["product_save_dir"], exist_ok=True)
             except:
-                raise ValueError("Product save directory path in config.txt is incorrect.")
+                raise ValueError("PROCESSED netCDF DIRECTORY in config.txt is incorrect.")
 
-        elif l == 29: config["SR_DEM_path"] = line.strip()
-        elif l == 32: 
+        elif l == 29: 
+            config["png_save_dir"] = line.strip()
+            if config["png_save_dir"] != "":
+                try:
+                    os.makedirs(config["png_save_dir"], exist_ok=True)
+                except:
+                    raise ValueError("PROCESSED PNG DIRECTORY in config.txt is incorrect.")
+            
+        elif l == 32: config["SR_DEM_path"] = line.strip()
+
+        elif l == 35: 
             config["LR_DEM_path"] = line.strip()
             try:
                 with open(config["SR_DEM_path"], "r") as f:
@@ -84,11 +93,11 @@ def load_config(config_file: str) -> dict:
             except:
                 raise ValueError("DEM file path(s) in config.txt is/are incorrect.")
 
-        elif l == 35: 
+        elif l == 38: 
             config["PPI_save_dir"] = line.strip()
             os.makedirs(config["PPI_save_dir"], exist_ok=True)
 
-        elif l == 38: 
+        elif l == 41: 
             config["TOP12_clim_path"] = line.strip()
             try:
                 with open(config["TOP12_clim_path"], "r") as f:

@@ -3,6 +3,7 @@ from CAPPI_LUE_tools import make_CAPPI, make_LUE
 from Composite_tools import composite
 from FindIRISFiles import search_short_range, search_long_range
 from Import_config import load_config
+from AutoPlot import plot_composite_file
 
 import os
 import numpy as np
@@ -39,7 +40,8 @@ def distance_weighting(dist):
     return QH
 
 def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y, 
-                 filedate, prod_type, comp_type, product_save_dir, VOLUME):
+                 filedate, prod_type, comp_type, product_save_dir, 
+                 png_save_dir, VOLUME):
     '''
     Results datasets saving function. If necessary, creates all the directories.
     
@@ -53,6 +55,7 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
     :param prod_type: Product type string, e.g., 'CAPPI1.5km' or 'LUE'
     :param comp_type: Composite type string, e.g., 'MAXZ' or 'MAXQI'
     :param product_save_dir: Directory path to save the product
+    :param png_save_dir: Directory path to save the product image as a png file
     :param VOLUME: Volume type string, e.g., 'VOLB', 'VOLA', or 'VOLBC'
     '''
 
@@ -64,23 +67,31 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
                         coords={"x": x, "y": y})
     
     # Create all necessary directories
-    os.makedirs(f"{product_save_dir}", exist_ok=True)
-    os.makedirs(f"{product_save_dir}/{VOLUME}", exist_ok=True)
-    os.makedirs(f"{product_save_dir}/{VOLUME}/{prod_type}", exist_ok=True)
-    todate_dir = f"{product_save_dir}/{VOLUME}/{prod_type}/{comp_type}"
-    os.makedirs(todate_dir, exist_ok=True)
-    time_dt = dt.datetime.strptime(filedate, '%y%m%d%H%M')
-    yy, mm, dd = time_dt.strftime("%Y"), time_dt.strftime("%m"), time_dt.strftime("%d")
-    os.makedirs(f"{todate_dir}/{yy}", exist_ok=True)
-    os.makedirs(f"{todate_dir}/{yy}/{mm}", exist_ok=True)
-    save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
-    os.makedirs(save_dir, exist_ok=True)
+    save_dirs = [product_save_dir]
+    if png_save_dir != "": save_dirs.append(png_save_dir)
+    for parent_dir in save_dirs:
+        os.makedirs(f"{parent_dir}", exist_ok=True)
+        os.makedirs(f"{parent_dir}/{VOLUME}", exist_ok=True)
+        os.makedirs(f"{parent_dir}/{VOLUME}/{prod_type}", exist_ok=True)
+        todate_dir = f"{parent_dir}/{VOLUME}/{prod_type}/{comp_type}"
+        os.makedirs(todate_dir, exist_ok=True)
+        time_dt = dt.datetime.strptime(filedate, '%y%m%d%H%M')
+        yy, mm, dd = time_dt.strftime("%Y"), time_dt.strftime("%m"), time_dt.strftime("%d")
+        os.makedirs(f"{todate_dir}/{yy}", exist_ok=True)
+        os.makedirs(f"{todate_dir}/{yy}/{mm}", exist_ok=True)
+        save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
+        os.makedirs(save_dir, exist_ok=True)
 
-    # Define filename and save dataset
-    filename = f"{VOLUME}_{prod_type}_{comp_type}_{filedate}.nc"
-    save_as = f"{save_dir}/{filename}"
-    result.to_netcdf(save_as, engine="scipy")
-    print(f"Created {filename}")
+        if parent_dir == product_save_dir:
+            # Define filename and save dataset
+            filename = f"{VOLUME}_{prod_type}_{comp_type}_{filedate}.nc"
+            nc_save_as = f"{save_dir}/{filename}"
+            result.to_netcdf(nc_save_as, engine="scipy")
+            print(f"Created {filename}")
+
+        # Generate png images
+        if png_save_dir != "" and parent_dir != product_save_dir:
+            plot_composite_file(nc_save_as, save_dir)
 
 # Load configuration parameters from "config" file
 config = load_config("config.txt")
@@ -245,23 +256,23 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
         # Compute CAPPI composite
         Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(CAPPI_ind_rad, QICAPPI_ind_rad, 
-                                               ELEVCAPPI_ind_rad, comp_type)
+                                                         ELEVCAPPI_ind_rad, comp_type)
 
         # Save results into a dataset
         prod_type = f'CAPPI{CAPPI_H/1000}km'
         save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                     filedate, prod_type, comp_type, product_save_dir, VOLUME)
+                     filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
 
         # ==================================== LUE COMPOSITES ====================================
 
         # Compute LUE composite
         Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(LUE_ind_rad, QILUE_ind_rad, 
-                                               ELEVLUE_ind_rad, comp_type)
+                                                         ELEVLUE_ind_rad, comp_type)
 
         # Save results into a dataset
         prod_type = f'LUE'
         save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                     filedate, prod_type, comp_type, product_save_dir, VOLUME)
+                     filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
 
     # End and print time of execution
     t1 = time()

@@ -22,8 +22,11 @@ MAXZ, MAXQI
 ============================= RAW DATA DIRECTORY ==============================
 /home/user/raw_data/
 
-========================== PROCESSED DATA DIRECTORY ===========================
+========================= PROCESSED netCDF DIRECTORY ==========================
 /home/user/processed_data/
+
+=========================== PROCESSED PNG DIRECTORY ===========================
+
 
 ======================== SHORT-RANGE DEM DIRECTORY PATH =======================
 /home/user/DEM/dem_100m_shortRange_wgs84.tif

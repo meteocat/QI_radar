@@ -17,12 +17,13 @@ QI_radar/
 ├── Polar2Cartesian_PPI.py          # Polar to Cartesian conversion of PPI radar data
 ├── Composite_tools.py              # Compositing radar data from multiple radars
 ├── CAPPI_LUE_tools.py              # Tools for generating CAPPI and LUE products
+├── AutoPlot.py                     # Plotting a PNG image file of each product generated
 |
 ├── config_template.txt             # Configuration file with processing parameters
 ├── HIST_TOP12.nc                   # Climatological echo tops data file
 ├── README.md                       # This documentation file
 |
-└── visualization/                  # Directory for visualization outputs
+└── visualization/                  # Directory for manually visualization outputs
 ```
 
 ---
@@ -46,7 +47,8 @@ The pipeline requires the following input data to be configured in a new configu
   - CAPPI height in meters.
   - Cartesian grid resolution in meters. Note that modifying this parameter will significantly affect processing time.
   - Raw data directory path.
-  - Processed data directory path (where output products are saved).
+  - Processed netCDF directory path (where output products are saved).
+  - Processed PNG directory path (where output PNG images are saved).
   - Paths to Digital Elevation Model (DEM) files for short-range and long-range processing.
   - Temporal storage directory name for individual radar PPI fields.
   - Path to echo tops 12dBZ climatology file.
@@ -68,7 +70,8 @@ Each output file contains variables:
 
 ## **Visualization**
 
-Visualization output may be generated using the ```plotComposite.py``` script following this command:
+Visualization output may be generated "manually" using the ```plotComposite.py``` script following this command:
 
 - If only wanting to visualise: ```python plotComposite.py [product_file_path.nc]```
-- If wanting to save png: ```python plotComposite.py s [product_file_path.nc] [saving_directory]```
+- If wanting to save PNG: ```python plotComposite.py s [product_file_path.nc] [saving_directory]```
+- If wanting to save multiple PNGs: ```python plotComposite.py m [product_files_directory] [saving_directory]```
