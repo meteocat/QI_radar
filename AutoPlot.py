@@ -67,7 +67,7 @@ which_cmap = mcolors.ListedColormap(colors)
 
 # ================================== Plotting function ==================================
 
-def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = False):
+def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
     """Generate and save the composite figure from a netCDF file.
 
     Parameters

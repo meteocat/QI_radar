@@ -43,9 +43,9 @@ def load_config(config_file: str) -> dict:
                 raise ValueError("Date format in config.txt is incorrect. Use YYYY-MM-DDTHH:MM")
 
         elif l == 11: 
-            config["VOLUME"] = line.strip()
-            if config["VOLUME"] not in ['VOLA', 'VOLB', 'VOLBC']:
-                raise ValueError("VOLUME SCAN USED in config.txt must be one of: 'VOLA', 'VOLB', 'VOLBC'")
+            config["VOLUMES"] = line.strip().split(", ")
+            if not all(vol in ['VOLA', 'VOLB', 'VOLBC'] for vol in config["VOLUMES"]):
+                raise ValueError("VOLUME SCAN USED in config.txt must be a comma-separated list of 'VOLA', 'VOLB' and/or 'VOLBC'")
         
         elif l == 14:
             config["PROD_types"] = line.strip().split(", ")

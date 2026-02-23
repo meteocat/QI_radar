@@ -87,18 +87,29 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
             filename = f"{VOLUME}_{prod_type}_{comp_type}_{filedate}.nc"
             nc_save_as = f"{save_dir}/{filename}"
             result.to_netcdf(nc_save_as, engine="scipy")
-            print(f"Created {filename}")
+            # print(f"Created {filename}")
 
         # Generate png images
         if png_save_dir != "" and parent_dir != product_save_dir:
             plot_composite_file(nc_save_as, save_dir)
+
+def import_DEM(DEM_path):
+    # Import DEM data
+    with rasterio.open(DEM_path) as src:
+        DEM_values = src.read(1)
+        height, width = src.shape
+        transform = src.transform
+    x = np.arange(width) * transform.a + transform.c
+    y = np.arange(height) * transform.e + transform.f
+    DEM_coords = np.array(np.meshgrid(x, y))
+    return DEM_values, np.moveaxis(DEM_coords, 0, 2), transform
 
 # Load configuration parameters from "config" file
 config = load_config("config.txt")
 
 init_dt = config["init_dt"]
 fin_dt = config["fin_dt"]
-VOLUME = config["VOLUME"]
+VOLUMES = config["VOLUMES"]
 COMP_types = config["COMP_types"]
 CAPPI_H = config["CAPPI_H"]
 dl = config["dl"]
@@ -107,17 +118,9 @@ PPI_save_dir = config["PPI_save_dir"]
 product_save_dir = config["product_save_dir"]
 IRIS_dir = config["IRIS_dir"]
 TOP12_clim_path = config["TOP12_clim_path"]
-DEM_path = config["SR_DEM_path"] if VOLUME != 'VOLA' else config["LR_DEM_path"]
 
-# Import DEM data
-with rasterio.open(DEM_path) as src:
-    DEM_values = src.read(1)
-    height, width = src.shape
-    transform = src.transform
-x = np.arange(width) * transform.a + transform.c
-y = np.arange(height) * transform.e + transform.f
-DEM_coords = np.array(np.meshgrid(x, y))
-DEM_coords = np.moveaxis(DEM_coords, 0, 2)
+LR_DEM_values, LR_DEM_coords, LR_DEM_transform = import_DEM(config["LR_DEM_path"])
+SR_DEM_values, SR_DEM_coords, SR_DEM_transform = import_DEM(config["SR_DEM_path"])
 
 # Loop over time range with 6-minute intervals
 for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
@@ -126,161 +129,186 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
     yy, mm, dd, hh, MM = dt_time.year, dt_time.month, dt_time.day, dt_time.hour, dt_time.minute
     IRIS_time = (yy, mm, dd, hh, MM)
 
-    # Search IRIS file paths
-    if VOLUME == 'VOLA':
-        paths = search_long_range(IRIS_time, IRIS_dir)
-    elif VOLUME == 'VOLB':
-        paths = search_short_range(IRIS_time, IRIS_dir)[::2]
-    elif VOLUME == 'VOLBC':
-        paths = search_short_range(IRIS_time, IRIS_dir)
+    for VOLUME in VOLUMES:
+        # Define print string
+        p_str = f"{VOLUME}\t{', '.join(config["PROD_types"])}\t{', '.join(config["COMP_types"])}\t"
+        p_str += f"{dt_time.strftime('%y-%m-%d %H:%M')}\t"
+        print(f"{p_str}PPI iteration: 0/4", end='\r')
 
-    # Clear files not corresponding to the current time step in the PPI save directory
-    keep_set = set(f"{p[-23:-8]}.nc" for p in paths)
-    for filename in os.listdir(PPI_save_dir):
-        file_path = os.path.join(PPI_save_dir, filename)
-        # Only process files (not subdirectories)
-        if os.path.isfile(file_path):
-            if filename not in keep_set or False: # --- IGNORE --- Change to "True" to delete all
-                os.remove(file_path)
+        DEM_coords = SR_DEM_coords
+        DEM_values = SR_DEM_values
+        transform = SR_DEM_transform
+        # Search IRIS file paths
+        if VOLUME == 'VOLA':
+            paths = search_long_range(IRIS_time, IRIS_dir)
+            DEM_coords = LR_DEM_coords
+            DEM_values = LR_DEM_values
+            transform = LR_DEM_transform
+        elif VOLUME == 'VOLB':
+            paths = search_short_range(IRIS_time, IRIS_dir)[::2]
+        elif VOLUME == 'VOLBC':
+            paths = search_short_range(IRIS_time, IRIS_dir)
 
-    # Define initial time of execution
-    t0 = time()
-        
-    # ============================= INDIVIDUAL PPI COMPUTATION =============================
-
-    # Loop over radar files
-    i = 0
-    for n in range(0, len(paths), 2 if VOLUME == "VOLBC" else 1):
-        try:
-            # Transform polar to cartesian coordinates for each PPI according 
-            # to the volume type used
-            if VOLUME == 'VOLA' or VOLUME == 'VOLB':
-                new_path = paths[n][-23:-8] + ".nc"
-                if not os.path.exists(f"{PPI_save_dir}/{new_path}"):
-                    ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                            DEM_values, DEM_coords, 
-                                            dl=dl, save_dir=PPI_save_dir,
-                                            VOLUME_NAME=VOLUME)
-                else:
-                    ds = xr.open_dataset(f"{PPI_save_dir}/{new_path}")
-
-            elif VOLUME == 'VOLBC':
-                new_path_B = paths[n][-23:-8] + ".nc"
-                if not os.path.exists(f"{PPI_save_dir}/{new_path_B}"):
-                    ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                                DEM_values, DEM_coords, 
-                                                dl=dl, save_dir=PPI_save_dir,
-                                                VOLUME_NAME='VOLB')
-                else:
-                    ds_VOLB = xr.open_dataset(f"{PPI_save_dir}/{new_path_B}")
-                
-                new_path_C = paths[n+1][-23:-8] + ".nc"
-                if not os.path.exists(f"{PPI_save_dir}/{new_path_C}"):
-                    ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
-                                                DEM_values, DEM_coords, 
-                                                dl=dl, save_dir=PPI_save_dir,
-                                                VOLUME_NAME='VOLC')
-                else:
-                    ds_VOLC = xr.open_dataset(f"{PPI_save_dir}/{new_path_C}")
-                    
-                ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
-
-            # Create temorary array for storing each radar individual products
-            if i==0:
-                CAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar CAPPI reflectivity
-                QICAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar CAPPI QI
-                ELEVCAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan # Single-radar CAPPI ELEV
-                LUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan       # Single-radar LUE reflectivity
-                QILUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar LUE QI
-                ELEVLUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar LUE ELEV
-
-                # Resample DEM to match radar grid
-                xgrid, ygrid = ds.x.values, ds.y.values
-                x_min, x_max = xgrid.min(), xgrid.max()
-                y_min, y_max = ygrid.min(), ygrid.max()
-                new_transform = from_origin(x_min, y_max, dl, dl)
-                dst_shape = (len(ygrid), len(xgrid))
-                DEM_resampled = np.empty(dst_shape, dtype=np.float32)
-                reproject(
-                    source=DEM_values,
-                    destination=DEM_resampled,
-                    src_transform=transform,
-                    src_crs="EPSG:4326",
-                    dst_transform=new_transform,
-                    dst_crs="EPSG:25831",
-                    resampling=Resampling.nearest
-                )
+        # Clear files not corresponding to the current time step in the PPI save directory
+        keep_set = set(f"{p[-23:-8]}.nc" for p in paths)
+        for filename in os.listdir(PPI_save_dir):
+            file_path = os.path.join(PPI_save_dir, filename)
+            # Only process files (not subdirectories)
+            if os.path.isfile(file_path):
+                if filename not in keep_set or False: # --- IGNORE --- Change to "True" to delete all
+                    os.remove(file_path)
             
-            if "CAPPI" in config["PROD_types"]:
-                # Apply height-to-CAPPI quality index
-                ds_CAPPI = ds.copy(deep=True)
-                for e in range(len(ds.elev.values)):
-                    ds_e = ds_CAPPI.isel(elev=e)
-                    Z_e = ds_e.Z.values
-                    QI_e = ds_e.QI.values
-                    H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
-                    QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
-                    ds_CAPPI["QI"].values[e, ...] = QI_e
+        # ============================= INDIVIDUAL PPI COMPUTATION =============================
+        t_beforePPI = time()
+
+        # Loop over radar files
+        i = 0
+        for n in range(0, len(paths), 2 if VOLUME == "VOLBC" else 1):
+            try:
+                # Transform polar to cartesian coordinates for each PPI according 
+                # to the volume type used
+                if VOLUME == 'VOLA' or VOLUME == 'VOLB':
+                    new_path = paths[n][-23:-8] + ".nc"
+                    if not os.path.exists(f"{PPI_save_dir}/{new_path}"):
+                        ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                                DEM_values, DEM_coords, 
+                                                dl=dl, save_dir=PPI_save_dir,
+                                                VOLUME_NAME=VOLUME)
+                    else:
+                        ds = xr.open_dataset(f"{PPI_save_dir}/{new_path}")
+
+                elif VOLUME == 'VOLBC':
+                    new_path_B = paths[n][-23:-8] + ".nc"
+                    if not os.path.exists(f"{PPI_save_dir}/{new_path_B}"):
+                        ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                                    DEM_values, DEM_coords, 
+                                                    dl=dl, save_dir=PPI_save_dir,
+                                                    VOLUME_NAME='VOLB')
+                    else:
+                        ds_VOLB = xr.open_dataset(f"{PPI_save_dir}/{new_path_B}")
+                    
+                    new_path_C = paths[n+1][-23:-8] + ".nc"
+                    if not os.path.exists(f"{PPI_save_dir}/{new_path_C}"):
+                        ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
+                                                    DEM_values, DEM_coords, 
+                                                    dl=dl, save_dir=PPI_save_dir,
+                                                    VOLUME_NAME='VOLC')
+                    else:
+                        ds_VOLC = xr.open_dataset(f"{PPI_save_dir}/{new_path_C}")
+                        
+                    ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
+
+                # Create temorary array for storing each radar individual products
+                if i==0:
+                    CAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar CAPPI reflectivity
+                    QICAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar CAPPI QI
+                    ELEVCAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan # Single-radar CAPPI ELEV
+                    LUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan       # Single-radar LUE reflectivity
+                    QILUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar LUE QI
+                    ELEVLUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar LUE ELEV
+
+                    # Resample DEM to match radar grid
+                    xgrid, ygrid = ds.x.values, ds.y.values
+                    x_min, x_max = xgrid.min(), xgrid.max()
+                    y_min, y_max = ygrid.min(), ygrid.max()
+                    new_transform = from_origin(x_min, y_max, dl, dl)
+                    dst_shape = (len(ygrid), len(xgrid))
+                    DEM_resampled = np.empty(dst_shape, dtype=np.float32)
+                    reproject(
+                        source=DEM_values,
+                        destination=DEM_resampled,
+                        src_transform=transform,
+                        src_crs="EPSG:4326",
+                        dst_transform=new_transform,
+                        dst_crs="EPSG:25831",
+                        resampling=Resampling.nearest
+                    )
                 
-                # Compute and store single-radar CAPPI products
-                CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
-                CAPPI_ind_rad[i, ...] = CAPPI
-                QICAPPI_ind_rad[i, ...] = QI
-                ELEVCAPPI_ind_rad[i, ...] = ELEV
+                if "CAPPI" in config["PROD_types"]:
+                    # Apply height-to-CAPPI quality index
+                    ds_CAPPI = ds.copy(deep=True)
+                    for e in range(len(ds.elev.values)):
+                        ds_e = ds_CAPPI.isel(elev=e)
+                        Z_e = ds_e.Z.values
+                        QI_e = ds_e.QI.values
+                        H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
+                        QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
+                        ds_CAPPI["QI"].values[e, ...] = QI_e
+                    
+                    # Compute and store single-radar CAPPI products
+                    CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
+                    CAPPI_ind_rad[i, ...] = CAPPI
+                    QICAPPI_ind_rad[i, ...] = QI
+                    ELEVCAPPI_ind_rad[i, ...] = ELEV
+
+                if "LUE" in config["PROD_types"]:
+                    # Apply height-to-ground quality index
+                    ds_LUE = ds.copy(deep=True)
+                    for e in range(len(ds.elev.values)):
+                        ds_e = ds_LUE.isel(elev=e)
+                        Z_e = ds_e.Z.values
+                        QI_e = ds_e.QI.values
+                        H_to_ground = ds_e.H.values - DEM_resampled
+                        QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
+                        ds_LUE["QI"].values[e, ...] = QI_e
+                    
+                    # Compute and store single-radar LUE products
+                    LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
+                    LUE_ind_rad[i, ...] = LUE
+                    QILUE_ind_rad[i, ...] = QI
+                    ELEVLUE_ind_rad[i, ...] = ELEV
+            
+            except Exception as e:
+                print(f"\nNot able to compute {paths[n]}\n{e}\n")
+
+            i += 1
+            print(f"{p_str}PPI iteration: {i}/4", end='\r')
+
+        t_beforeCOMP = time()
+        T = t_beforeCOMP - t_beforePPI
+        p_str = f"{p_str}PPI iteration: {int(T/60)}m{int(T%60)}s\t"
+        N_results = int(len(COMP_types) * len(config["PROD_types"]))
+        print(f"{p_str}COMP gen: 0/{N_results}", end='\r')
+
+        # Iterate over composite types
+        i = 0
+        for comp_type in COMP_types:
+            filedate = dt_time.strftime('%y%m%d%H%M') # File date string
+
+            # =================================== CAPPI COMPOSITES ===================================
+
+            if "CAPPI" in config["PROD_types"]:
+                # Compute CAPPI composite
+                Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(CAPPI_ind_rad, QICAPPI_ind_rad, 
+                                                                ELEVCAPPI_ind_rad, comp_type)
+
+                # Save results into a dataset
+                prod_type = f'CAPPI{CAPPI_H/1000}km'
+                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
+                            filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
+            
+            i += 1
+            print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')
+
+            # ==================================== LUE COMPOSITES ====================================
 
             if "LUE" in config["PROD_types"]:
-                # Apply height-to-ground quality index
-                ds_LUE = ds.copy(deep=True)
-                for e in range(len(ds.elev.values)):
-                    ds_e = ds_LUE.isel(elev=e)
-                    Z_e = ds_e.Z.values
-                    QI_e = ds_e.QI.values
-                    H_to_ground = ds_e.H.values - DEM_resampled
-                    QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
-                    ds_LUE["QI"].values[e, ...] = QI_e
-                
-                # Compute and store single-radar LUE products
-                LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
-                LUE_ind_rad[i, ...] = LUE
-                QILUE_ind_rad[i, ...] = QI
-                ELEVLUE_ind_rad[i, ...] = ELEV
+                # Compute LUE composite
+                Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(LUE_ind_rad, QILUE_ind_rad, 
+                                                                ELEVLUE_ind_rad, comp_type)
+
+                # Save results into a dataset
+                prod_type = f'LUE'
+                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
+                            filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
+            
+            i += 1
+            print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')
         
-        except Exception as e:
-            print(f"\nNot able to compute {paths[n]}\n{e}\n")
-
-        i += 1
-
-    # Iterate over composite types
-    for comp_type in COMP_types:
-        filedate = dt_time.strftime('%y%m%d%H%M') # File date string
-
-        # =================================== CAPPI COMPOSITES ===================================
-
-        if "CAPPI" in config["PROD_types"]:
-            # Compute CAPPI composite
-            Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(CAPPI_ind_rad, QICAPPI_ind_rad, 
-                                                            ELEVCAPPI_ind_rad, comp_type)
-
-            # Save results into a dataset
-            prod_type = f'CAPPI{CAPPI_H/1000}km'
-            save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                         filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
-
-        # ==================================== LUE COMPOSITES ====================================
-
-        if "LUE" in config["PROD_types"]:
-            # Compute LUE composite
-            Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP = composite(LUE_ind_rad, QILUE_ind_rad, 
-                                                            ELEVLUE_ind_rad, comp_type)
-
-            # Save results into a dataset
-            prod_type = f'LUE'
-            save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                         filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
-
-    # End and print time of execution
-    t1 = time()
-    T = t1 - t0
-    print(f"Compilation time: {int(T/60)}m{int(T%60)}s")
-
+        t_afterCOMP = time()
+        T = t_afterCOMP - t_beforeCOMP
+        T_total = t_afterCOMP - t_beforePPI
+        print(f"{p_str}COMP gen: {int(T/60)}m{int(T%60)}s\tTOTAL: {int(T_total/60)}m{int(T_total%60)}s", end='\r')
+    
+        print()
     print()

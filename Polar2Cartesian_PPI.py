@@ -96,7 +96,6 @@ def single_PPI(ds, TOP12_clim_path, DEM_values, DEM_coords, instr_var, dl=1000):
     :param DEM_coords: DEM raster coordinates
     :param instr_var: Dictionary with radar calibration and processing constants
     :param dl: Cartesian grid resolution (meters), default set to 1000 m
-    :param timings: Whether to print timing information
     
     :return: 2D arrays with Cartesian reflectivity and Quality Index
     '''
@@ -483,7 +482,7 @@ def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000,
         N_sweeps = len(sweep_list)
 
     # Compute PPIs for each sweep
-    print(f"Computing PPIs {file_name} (0/{N_sweeps})", end='\r')
+    # print(f"Computing PPIs {file_name} (0/{N_sweeps})", end='\r')
     for sweep in sweep_list:
         # Extract sweep dataset
         ds = vol[f"sweep_{sweep}"]
@@ -496,7 +495,7 @@ def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000,
         QI_data.append(QI_PPI_cart)
         H_data.append(altitudes)
 
-        print(f"Computing PPIs {file_name} ({sweep+1}/{N_sweeps})", end='\r')
+        # print(f"Computing PPIs {file_name} ({sweep+1}/{N_sweeps})", end='\r')
 
     # Save to dataset
     to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
@@ -524,6 +523,6 @@ def Polar2Cartesian(IRIS_path, TOP12_clim_path, DEM_values, DEM_coords, dl=1000,
     })
 
     result.to_netcdf(f"{save_dir}/{file_name}.nc", engine="scipy")
-    print()
+    # print()
 
     return result

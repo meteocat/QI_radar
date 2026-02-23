@@ -7,7 +7,7 @@
 ====================== FINAL UTC TIME [YYYY-MM-DDTHH:MM] ======================
 2025-09-21T16:12
 
-================ VOLUME SCAN USED ["VOLA", "VOLB" OR "VOLBC"] =================
+============== VOLUME SCAN USED ["VOLA", "VOLB" AND/OR "VOLBC"] ===============
 VOLB
 
 ==================== PRODUCT TYPES ["LUE" AND/OR "CAPPI"] =====================
