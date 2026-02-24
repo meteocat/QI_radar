@@ -1,9 +1,10 @@
 import xarray as xr
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.gridspec as gridspec
 import numpy as np
-import geopandas as gpd
 import cartopy as crtpy
 import os
 from pyproj import Transformer
@@ -67,7 +68,7 @@ which_cmap = mcolors.ListedColormap(colors)
 
 # ================================== Plotting function ==================================
 
-def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
+def plot_composite_file(nc_path: str, save_dir: str, comarques, large_cmap: bool = True):
     """Generate and save the composite figure from a netCDF file.
 
     Parameters
@@ -94,8 +95,6 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
         y_vals = ds.y.values
 
     # geographic overlays and radar positions
-    shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
-    comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
     _to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
     rad_pos = np.array([[41.60192013,  1.40283002],
                         [41.37334999,  1.88197011],
@@ -134,7 +133,7 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
 
     for axis in axes_all:
         comarques.boundary.plot(ax=axis, color='black', linewidth=0.7)
-        axis.coastlines(linewidth=1.5)
+        axis.coastlines(resolution='10m')
         axis.add_feature(crtpy.feature.BORDERS, linestyle='-', edgecolor='black', linewidth=1.5)
         axis.set_xticks([]); axis.set_yticks([])
         axis.set_xlim(x_vals.min(), x_vals.max())
@@ -180,6 +179,8 @@ def plot_composite_file(nc_path: str, save_dir: str, large_cmap: bool = True):
     outpath = os.path.join(save_dir, f"{filename}.png")
     plt.savefig(outpath, dpi=200, bbox_inches="tight")
     plt.close(fig)
+    plt.clf()
+    plt.close("all")
     del Z_comp, QI_comp, which_rad, ELEV, x_vals, y_vals
     import gc; gc.collect()
     # print(f"Saved {outpath}")

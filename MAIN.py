@@ -13,6 +13,7 @@ from time import time
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.warp import reproject, Resampling
+import geopandas as gpd
 
 def distance_weighting(dist):
     ''' Weighting function based on distance quality index (QH)
@@ -41,7 +42,7 @@ def distance_weighting(dist):
 
 def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y, 
                  filedate, prod_type, comp_type, product_save_dir, 
-                 png_save_dir, VOLUME):
+                 png_save_dir, comarques, VOLUME):
     '''
     Results datasets saving function. If necessary, creates all the directories.
     
@@ -91,7 +92,7 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
 
         # Generate png images
         if png_save_dir != "" and parent_dir != product_save_dir:
-            plot_composite_file(nc_save_as, save_dir)
+            plot_composite_file(nc_save_as, save_dir, comarques)
 
 def import_DEM(DEM_path):
     # Import DEM data
@@ -121,6 +122,9 @@ TOP12_clim_path = config["TOP12_clim_path"]
 
 LR_DEM_values, LR_DEM_coords, LR_DEM_transform = import_DEM(config["LR_DEM_path"])
 SR_DEM_values, SR_DEM_coords, SR_DEM_transform = import_DEM(config["SR_DEM_path"])
+
+shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
+comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
 
 # Loop over time range with 6-minute intervals
 for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
@@ -198,17 +202,24 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                         
                     ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
 
+                    ds_VOLB.close()
+                    ds_VOLC.close()
+                
+                ds_x, ds_y = ds.x.values, ds.y.values
+                ds_copy = ds.copy(deep=True)
+                ds.close()
+
                 # Create temorary array for storing each radar individual products
                 if i==0:
-                    CAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar CAPPI reflectivity
-                    QICAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar CAPPI QI
-                    ELEVCAPPI_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan # Single-radar CAPPI ELEV
-                    LUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan       # Single-radar LUE reflectivity
-                    QILUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan     # Single-radar LUE QI
-                    ELEVLUE_ind_rad = np.ones((4, len(ds.y), len(ds.x))) * np.nan   # Single-radar LUE ELEV
+                    CAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar CAPPI reflectivity
+                    QICAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar CAPPI QI
+                    ELEVCAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan # Single-radar CAPPI ELEV
+                    LUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan       # Single-radar LUE reflectivity
+                    QILUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar LUE QI
+                    ELEVLUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar LUE ELEV
 
                     # Resample DEM to match radar grid
-                    xgrid, ygrid = ds.x.values, ds.y.values
+                    xgrid, ygrid = ds_x, ds_y
                     x_min, x_max = xgrid.min(), xgrid.max()
                     y_min, y_max = ygrid.min(), ygrid.max()
                     new_transform = from_origin(x_min, y_max, dl, dl)
@@ -226,7 +237,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 
                 if "CAPPI" in config["PROD_types"]:
                     # Apply height-to-CAPPI quality index
-                    ds_CAPPI = ds.copy(deep=True)
+                    ds_CAPPI = ds_copy.copy(deep=True)
                     for e in range(len(ds.elev.values)):
                         ds_e = ds_CAPPI.isel(elev=e)
                         Z_e = ds_e.Z.values
@@ -243,7 +254,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
                 if "LUE" in config["PROD_types"]:
                     # Apply height-to-ground quality index
-                    ds_LUE = ds.copy(deep=True)
+                    ds_LUE = ds_copy.copy(deep=True)
                     for e in range(len(ds.elev.values)):
                         ds_e = ds_LUE.isel(elev=e)
                         Z_e = ds_e.Z.values
@@ -284,8 +295,9 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
                 # Save results into a dataset
                 prod_type = f'CAPPI{CAPPI_H/1000}km'
-                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                            filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
+                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds_x, ds_y, 
+                            filedate, prod_type, comp_type, product_save_dir, 
+                            config["png_save_dir"], comarques, VOLUME)
             
             i += 1
             print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')
@@ -299,8 +311,9 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
                 # Save results into a dataset
                 prod_type = f'LUE'
-                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds.x.values, ds.y.values, 
-                            filedate, prod_type, comp_type, product_save_dir, config["png_save_dir"], VOLUME)
+                save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds_x, ds_y, 
+                            filedate, prod_type, comp_type, product_save_dir, 
+                            config["png_save_dir"], comarques, VOLUME)
             
             i += 1
             print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')
@@ -311,4 +324,5 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         print(f"{p_str}COMP gen: {int(T/60)}m{int(T%60)}s\tTOTAL: {int(T_total/60)}m{int(T_total%60)}s", end='\r')
     
         print()
-    print()
+
+    if len(VOLUMES) > 1: print()
