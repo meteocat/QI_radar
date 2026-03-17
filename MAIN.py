@@ -123,8 +123,10 @@ TOP12_clim_path = config["TOP12_clim_path"]
 LR_DEM_values, LR_DEM_coords, LR_DEM_transform = import_DEM(config["LR_DEM_path"])
 SR_DEM_values, SR_DEM_coords, SR_DEM_transform = import_DEM(config["SR_DEM_path"])
 
-shape_file = "/home/nvm/nvm_local/data/comarques_shape/2025/divisions-administratives-v2r1-comarques-50000-20250730.shp"
-comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
+if config["png_save_dir"] != "":
+    shape_file = config["shapefile_path"]
+    comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
+else: comarques = None
 
 # Loop over time range with 6-minute intervals
 for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):

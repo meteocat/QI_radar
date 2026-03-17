@@ -31,6 +31,9 @@ MAXZ, MAXQI
 =========================== PROCESSED PNG DIRECTORY ===========================
 
 
+============================ REGION SHAPEFILE PATH ============================
+
+
 ======================== SHORT-RANGE DEM DIRECTORY PATH =======================
 /home/user/DEM/dem_100m_shortRange_wgs84.tif
 
