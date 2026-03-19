@@ -29,7 +29,6 @@ def load_config(config_file: str) -> dict:
     config = {}
     for l in range(1,len(config_lines)+1):
         line = config_lines[l-1] # Adjust for 0-based index
-        config["shapefile_path"] = ""
         
         # Parse expected configuration values based on line number
 
@@ -88,10 +87,13 @@ def load_config(config_file: str) -> dict:
                 except:
                     raise ValueError("PROCESSED PNG DIRECTORY in config.txt is incorrect.")
         
-        elif l == 35 and config["png_save_dir"] != "": 
+        elif l == 35 and config["png_save_dir"] != "":
             config["shapefile_path"] = line.strip()
             if not os.path.exists(config["shapefile_path"]):
-                raise ValueError("SHAPEFILE path does not exist or is empty.")
+                raise ValueError("SHAPEFILE path does not exist.")
+            
+        elif l == 35 and config["png_save_dir"] == "":
+            config["shapefile_path"] = ""
             
         elif l == 38: config["SR_DEM_path"] = line.strip()
 

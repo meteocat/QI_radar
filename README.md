@@ -22,8 +22,6 @@ QI_radar/
 ├── config_template.txt             # Configuration file with processing parameters
 ├── HIST_TOP12.nc                   # Climatological echo tops data file
 ├── README.md                       # This documentation file
-|
-└── visualization/                  # Directory for manually visualization outputs
 ```
 
 ---
@@ -49,7 +47,8 @@ The pipeline requires the following input data to be configured in a new configu
   - Cartesian grid resolution in meters. Note that modifying this parameter will significantly affect processing time.
   - Raw data directory path.
   - Processed netCDF directory path (where output products are saved).
-  - Processed PNG directory path (where output PNG images are saved).
+  - Processed PNG directory path (where output PNG images are saved). If left blank no images are generated.
+  - Region shapefile path necessary to plot images. If images path is blank, its not needed.
   - Paths to Digital Elevation Model (DEM) files for short-range and long-range processing.
   - Temporal storage directory name for individual radar PPI fields.
   - Path to echo tops 12dBZ climatology file.
@@ -67,7 +66,7 @@ Each output file contains variables:
 - `RAD`: Radar identifier chosen by the composite criteria (integer)
 - `ELEV`: Elevation angle used (degrees)
 
----
+<!-- ---
 
 ## **Visualization**
 
@@ -75,4 +74,4 @@ Visualization output may be generated "manually" using the ```plotComposite.py``
 
 - If only wanting to visualise: ```python plotComposite.py [product_file_path.nc]```
 - If wanting to save PNG: ```python plotComposite.py s [product_file_path.nc] [saving_directory]```
-- If wanting to save multiple PNGs: ```python plotComposite.py m [product_files_directory] [saving_directory]```
+- If wanting to save multiple PNGs: ```python plotComposite.py m [product_files_directory] [saving_directory]``` -->

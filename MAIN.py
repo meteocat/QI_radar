@@ -137,7 +137,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
 
     for VOLUME in VOLUMES:
         # Define print string
-        p_str = f"{VOLUME}\t{', '.join(config["PROD_types"])}\t{', '.join(config["COMP_types"])}\t"
+        p_str = f"{VOLUME}\t{', '.join(config['PROD_types'])}\t{', '.join(config['COMP_types'])}\t"
         p_str += f"{dt_time.strftime('%y-%m-%d %H:%M')}\t"
         print(f"{p_str}PPI iteration: 0/4", end='\r')
 
