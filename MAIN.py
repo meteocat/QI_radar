@@ -2,7 +2,7 @@ from Polar2Cartesian_PPI import Polar2Cartesian
 from CAPPI_LUE_tools import make_CAPPI, make_LUE
 from Composite_tools import composite
 from FindIRISFiles import search_short_range, search_long_range
-from Import_config import load_config
+from Import_config import load_config, parse_arguments
 from AutoPlot import plot_composite_file
 
 import os
@@ -42,7 +42,7 @@ def distance_weighting(dist):
 
 def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y, 
                  filedate, prod_type, comp_type, product_save_dir, 
-                 png_save_dir, comarques, VOLUME):
+                 comarques, VOLUME):
     '''
     Results datasets saving function. If necessary, creates all the directories.
     
@@ -68,8 +68,8 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
                         coords={"x": x, "y": y})
     
     # Create all necessary directories
-    save_dirs = [product_save_dir]
-    if png_save_dir != "": save_dirs.append(png_save_dir)
+    save_dirs = [f"{product_save_dir}/NC", f"{product_save_dir}/PNG"]
+    
     for parent_dir in save_dirs:
         os.makedirs(f"{parent_dir}", exist_ok=True)
         os.makedirs(f"{parent_dir}/{VOLUME}", exist_ok=True)
@@ -83,15 +83,14 @@ def save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, x, y,
         save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
         os.makedirs(save_dir, exist_ok=True)
 
-        if parent_dir == product_save_dir:
+        if parent_dir[-2:] == 'NC':
             # Define filename and save dataset
             filename = f"{VOLUME}_{prod_type}_{comp_type}_{filedate}.nc"
             nc_save_as = f"{save_dir}/{filename}"
             result.to_netcdf(nc_save_as, engine="scipy")
-            # print(f"Created {filename}")
 
-        # Generate png images
-        if png_save_dir != "" and parent_dir != product_save_dir:
+        if parent_dir[-3:] == 'PNG':
+            # Generate png images
             plot_composite_file(nc_save_as, save_dir, comarques)
 
 def import_DEM(DEM_path):
@@ -107,6 +106,7 @@ def import_DEM(DEM_path):
 
 # Load configuration parameters from "config" file
 config = load_config("config.txt")
+args = parse_arguments()
 
 init_dt = config["init_dt"]
 fin_dt = config["fin_dt"]
@@ -116,17 +116,15 @@ CAPPI_H = config["CAPPI_H"]
 dl = config["dl"]
 
 PPI_save_dir = config["PPI_save_dir"]
-product_save_dir = config["product_save_dir"]
-IRIS_dir = config["IRIS_dir"]
+prod_save_dir = args.output # config["product_save_dir"]
+IRIS_dir = args.input # config["IRIS_dir"]
 TOP12_clim_path = config["TOP12_clim_path"]
 
 LR_DEM_values, LR_DEM_coords, LR_DEM_transform = import_DEM(config["LR_DEM_path"])
 SR_DEM_values, SR_DEM_coords, SR_DEM_transform = import_DEM(config["SR_DEM_path"])
 
-if config["png_save_dir"] != "":
-    shape_file = config["shapefile_path"]
-    comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
-else: comarques = None
+shape_file = config["shapefile_path"]
+comarques = gpd.read_file(shape_file).to_crs(epsg=25831)
 
 # Loop over time range with 6-minute intervals
 for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
@@ -298,8 +296,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 # Save results into a dataset
                 prod_type = f'CAPPI{CAPPI_H/1000}km'
                 save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds_x, ds_y, 
-                            filedate, prod_type, comp_type, product_save_dir, 
-                            config["png_save_dir"], comarques, VOLUME)
+                            filedate, prod_type, comp_type, prod_save_dir, comarques, VOLUME)
             
             i += 1
             print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')
@@ -314,8 +311,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
                 # Save results into a dataset
                 prod_type = f'LUE'
                 save_dataset(Z_COMP, QI_COMP, RAD_COMP, ELEV_COMP, ds_x, ds_y, 
-                            filedate, prod_type, comp_type, product_save_dir, 
-                            config["png_save_dir"], comarques, VOLUME)
+                            filedate, prod_type, comp_type, prod_save_dir, comarques, VOLUME)
             
             i += 1
             print(f"{p_str}COMP gen: {i}/{N_results}", end='\r')

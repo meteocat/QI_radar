@@ -12,7 +12,7 @@ The repository structure is as follows:
 ```
 QI_radar/
 ├── MAIN.py                         # Main script orchestrating the pipeline
-├── Import_config.py                # Loads and parses the configuration file
+├── Import_config.py                # Loads and parses the configuration file and arguments
 ├── FindIRISFiles.py                # Search and locate IRIS radar data files
 ├── Polar2Cartesian_PPI.py          # Polar to Cartesian conversion of PPI radar data
 ├── Composite_tools.py              # Compositing radar data from multiple radars
@@ -30,7 +30,7 @@ QI_radar/
 
 ### ▶ **Input Files**
 
-The pipeline requires the following input data to be configured in a new configuration file named `config.txt` (take example from the `config_template.txt`):
+The pipeline requires the following input data:
 
 - **Raw Radar Data Files**: IRIS format (.RAW) files containing polar radar reflectivity data from the XRAD C-band radar network. Examples of such files can be found in the following repository: https://github.com/meteocat/QI_radar_data.
 
@@ -42,20 +42,31 @@ The pipeline requires the following input data to be configured in a new configu
   - Initial and final UTC times for processing (note that the final time is not processed).
   - Volume scan type (VOLA, VOLB, or VOLBC). Choose according to the desired products.
   - Product type to compute: Lowest Usable Elevation (LUE) and/or Constant Altitude Plan Position Indicator (CAPPI).
-  - Composite types to compute (MAXZ, MAXQI and/or MAXQI_dev). Each type has a different radar priorization methodology where more than one radar detects reflectivity.
+  - Composite types to compute (MAXZ, MAXQI and/or MAXQCOND). Each type has a different radar priorization methodology where more than one radar detects reflectivity.
   - CAPPI height in meters.
   - Cartesian grid resolution in meters. Note that modifying this parameter will significantly affect processing time.
-  - Raw data directory path.
-  - Processed netCDF directory path (where output products are saved).
-  - Processed PNG directory path (where output PNG images are saved). If left blank no images are generated.
-  - Region shapefile path necessary to plot images. If images path is blank, its not needed.
+  - Region shapefile path necessary to plot images.
   - Paths to Digital Elevation Model (DEM) files for short-range and long-range processing.
   - Temporal storage directory name for individual radar PPI fields.
   - Path to echo tops 12dBZ climatology file.
 
+- **Command Line Arguments**:
+  - Input directory path containing the raw radar data files.
+  - Output directory path where processed NetCDF and PNG files will be saved.
+
+### ▶ **Execution Example**
+
+To run the processing pipeline, use the following command:
+
+```bash
+python MAIN.py -i /path/to/raw/radar/data -o /path/to/output/directory
+```
+
+Replace `/path/to/raw/radar/data` with the actual path to the directory containing the IRIS .RAW files, and `/path/to/output/directory` with the desired output directory for the processed products.
+
 ### ▶ **Output Files**
 
-The pipeline generates the following composite products as NetCDF (.nc) files organized by volume type, product type, composite type, and date:
+The pipeline generates the following composite products as NetCDF (.nc) and as PNG image files organized by volume type, product type, composite type, and date:
 
 - **CAPPI (Constant Altitude Plan Position Indicator)**: Cartesian reflectivity fields at a specified height, with MAX-Z (maximum reflectivity) and MAX-QI (maximum quality index) composites.
 - **LUE (Lowest Usable Elevation)**: Products from the lowest usable elevation angles, with MAX-Z and MAX-QI composites.

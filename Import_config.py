@@ -1,5 +1,14 @@
 import datetime as dt
+import argparse
 import os
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Process input and output paths.")
+
+    parser.add_argument("-i", "--input", required=True, help="Input path")
+    parser.add_argument("-o", "--output", required=True, help="Output path")
+
+    return parser.parse_args()
 
 def load_config(config_file: str) -> dict:
     '''Load configuration parameters from a text file.
@@ -67,37 +76,14 @@ def load_config(config_file: str) -> dict:
             except:
                 raise ValueError("CAPPI HEIGHT and CARTESIAN RESOLUTION in config.txt must be an integer value in meters.")
 
-        elif l == 26: 
-            config["IRIS_dir"] = line.strip()
-            if not os.path.exists(config["IRIS_dir"]) or len(os.listdir(config["IRIS_dir"])) == 0:
-                raise ValueError("RAW DATA DIRECTORY does not exist or is empty. Please create a 'data/raw' folder in the project directory and populate it with IRIS data.")
-        
-        elif l == 29: 
-            config["product_save_dir"] = line.strip()
-            try:
-                os.makedirs(config["product_save_dir"], exist_ok=True)
-            except:
-                raise ValueError("PROCESSED netCDF DIRECTORY in config.txt is incorrect.")
-
-        elif l == 32: 
-            config["png_save_dir"] = line.strip()
-            if config["png_save_dir"] != "":
-                try:
-                    os.makedirs(config["png_save_dir"], exist_ok=True)
-                except:
-                    raise ValueError("PROCESSED PNG DIRECTORY in config.txt is incorrect.")
-        
-        elif l == 35 and config["png_save_dir"] != "":
+        elif l == 26:
             config["shapefile_path"] = line.strip()
             if not os.path.exists(config["shapefile_path"]):
                 raise ValueError("SHAPEFILE path does not exist.")
             
-        elif l == 35 and config["png_save_dir"] == "":
-            config["shapefile_path"] = ""
-            
-        elif l == 38: config["SR_DEM_path"] = line.strip()
+        elif l == 29: config["SR_DEM_path"] = line.strip()
 
-        elif l == 41: 
+        elif l == 32: 
             config["LR_DEM_path"] = line.strip()
             try:
                 with open(config["SR_DEM_path"], "r") as f:
@@ -107,11 +93,11 @@ def load_config(config_file: str) -> dict:
             except:
                 raise ValueError("DEM file path(s) in config.txt is/are incorrect.")
 
-        elif l == 44: 
+        elif l == 35: 
             config["PPI_save_dir"] = line.strip()
             os.makedirs(config["PPI_save_dir"], exist_ok=True)
 
-        elif l == 47: 
+        elif l == 38: 
             config["TOP12_clim_path"] = line.strip()
             try:
                 with open(config["TOP12_clim_path"], "r") as f:

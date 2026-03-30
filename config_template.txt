@@ -22,15 +22,6 @@ MAXZ, MAXQI
 ======================== CARTESIAN RESOLUTION (meters) ========================
 1000
 
-============================= RAW DATA DIRECTORY ==============================
-/home/user/raw_data/
-
-========================= PROCESSED netCDF DIRECTORY ==========================
-/home/user/processed_data/
-
-=========================== PROCESSED PNG DIRECTORY ===========================
-
-
 ============================ REGION SHAPEFILE PATH ============================
 
 
