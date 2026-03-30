@@ -1,6 +1,7 @@
 import os
 import datetime as dt
 import numpy as np
+import xradar as xd
 
 def search_path(time_dt: dt.datetime, directory: str) -> dict:
     ''' Search for radar files in the specified directory within a 6-minute window.
@@ -63,7 +64,16 @@ def search_long_range(time: tuple, directory: str) -> list:
     # Extract the VOLA files (earliest files for each radar)
     VOLA_paths = []
     for rad in ['CDV', 'PBE', 'PDA', 'LMI']:
-        VOLA = paths[rad]['paths'][np.argmin(paths[rad]['times'])]
+        VOLA = None
+        for p in paths[rad]['paths']:
+            vol = xd.io.open_iris_datatree(p, reindex_angle=False)
+            scan_name = vol.attrs['scan_name']
+
+            if "A" in scan_name: 
+                VOLA = p
+                break
+
+        # VOLA = paths[rad]['paths'][np.argmin(paths[rad]['times'])]
         VOLA_paths.append(VOLA)
     
     return VOLA_paths
@@ -87,9 +97,17 @@ def search_short_range(time: tuple, directory: str) -> list:
     # Extract the VOLBC files (latest two files for each radar)
     VOLBC_paths = []
     for rad in ['CDV', 'PBE', 'PDA', 'LMI']:
-        VOLA = paths[rad]['paths'][np.argmin(paths[rad]['times'])]
-        VOLC = paths[rad]['paths'][np.argmax(paths[rad]['times'])]
-        VOLB = [p for p in paths[rad]['paths'] if p != VOLA and p != VOLC][0]
+        VOLB, VOLC = None, None
+        for p in paths[rad]['paths']:
+            vol = xd.io.open_iris_datatree(p, reindex_angle=False)
+            scan_name = vol.attrs['scan_name']
+
+            if "B" in scan_name: VOLB = p
+            if "C" in scan_name: VOLC = p
+
+        # VOLA = paths[rad]['paths'][np.argmin(paths[rad]['times'])]
+        # VOLC = paths[rad]['paths'][np.argmax(paths[rad]['times'])]
+        # VOLB = [p for p in paths[rad]['paths'] if p != VOLA and p != VOLC][0]
 
         VOLBC_paths.append(VOLB)
         VOLBC_paths.append(VOLC)
