@@ -105,9 +105,13 @@ def import_DEM(DEM_path):
     return DEM_values, np.moveaxis(DEM_coords, 0, 2), transform
 
 # Load configuration parameters from "config" file
-config = load_config("config.txt")
 args = parse_arguments()
+config_file = args.config
+# Check if config file exists
+if not os.path.exists(config_file):
+    raise FileNotFoundError(f"Configuration file '{config_file}' does not exist.")
 
+config = load_config(config_file)
 init_dt = config["init_dt"]
 fin_dt = config["fin_dt"]
 VOLUMES = config["VOLUMES"]

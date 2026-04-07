@@ -1,7 +1,7 @@
 __pycache__/
 processed_data/
-temp/
+temp*/
 img/
-config.txt
+*config.txt
 testing.ipynb
 visualization/

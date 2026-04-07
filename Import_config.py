@@ -5,8 +5,15 @@ import os
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Process input and output paths.")
 
-    parser.add_argument("-i", "--input", required=True, help="Input path")
-    parser.add_argument("-o", "--output", required=True, help="Output path")
+    parser.add_argument("-i", "--input", required=True, 
+                        help="Input path (directory containing radar data files)")
+    parser.add_argument("-o", "--output", required=True, 
+                        help="Output path (directory to save processed files)")
+    parser.add_argument(
+        "-c", "--config",
+        default="config.txt",
+        help="Configuration file path (default: config.txt)"
+    )
 
     return parser.parse_args()
 
