@@ -6,6 +6,7 @@ from shapely.geometry import Polygon, box
 from shapely import STRtree
 from scipy.spatial import cKDTree
 from scipy.interpolate import griddata
+from scipy.ndimage import label
 import datetime as dt
 import os, sys
 import xarray as xr
@@ -14,6 +15,23 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 from time import time
+
+def remove_small_specks(image, min_size=12):
+    mask = image != -32
+
+    labeled, num = label(mask)
+    
+    # Count pixels per label
+    counts = np.bincount(labeled.ravel())
+    
+    # Create mask of valid components
+    keep = counts >= min_size
+    keep[0] = False  # background
+    
+    cleaned = image.copy()
+    cleaned[~keep[labeled]] = -32
+    
+    return cleaned
 
 def _read_int(n: int, signed=False, ang=False):
     """
@@ -381,14 +399,18 @@ def single_PPI(ds, TOP12_clim_path, DEM_values, DEM_coords, instr_var, dl=1000):
     QI_values = QI_polar_values[indices]
     sum_QI = np.sum(weights * QI_values, axis=1)
 
+    # Distingwish when all gates are NaN
+    all_nan = np.all(Z_values==-32, axis=1)
+
     # Define corrected Z method depending on sum_QI
     Z_corr_eq0 = np.sum(Z_values * weights, axis=1)
     Z_corr_gt0 = np.sum(Z_values * weights * QI_values, axis=1) / sum_QI
 
-    # Apply Z correction depending on sum_QI
+    # Apply Z correction depending on sum_QI and on nan condition
     flat_Z_corr = np.zeros_like(sum_QI)
     flat_Z_corr[sum_QI > 0] = Z_corr_gt0[sum_QI > 0]
     flat_Z_corr[sum_QI == 0] = Z_corr_eq0[sum_QI == 0]
+    flat_Z_corr[all_nan] = -32
     
     # Correct QI as weighted mean
     flat_QI_corr = np.sum(weights * QI_values, axis=1)
@@ -444,6 +466,9 @@ def single_PPI(ds, TOP12_clim_path, DEM_values, DEM_coords, instr_var, dl=1000):
 
     # Interpolate to fit the cartesian grid
     altitudes = griddata(points, values, (Xgrid, Ygrid), method='nearest')
+
+    # ================================= REMOVE DETECTED SPECKS ================================
+    Z_PPI_cart = remove_small_specks(Z_PPI_cart, min_size=12)
 
     return Z_PPI_cart, QI_PPI_cart, altitudes, xgrid, ygrid
 
