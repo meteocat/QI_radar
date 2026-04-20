@@ -158,7 +158,7 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
             paths = search_short_range(IRIS_time, IRIS_dir)
 
         # Clear files not corresponding to the current time step in the PPI save directory
-        keep_set = set(f"{p[-23:-8]}.nc" for p in paths)
+        keep_set = set(f"{p[-23:-8]}.nc" for p in paths if p != None)
         for filename in os.listdir(PPI_save_dir):
             file_path = os.path.join(PPI_save_dir, filename)
             # Only process files (not subdirectories)
@@ -170,114 +170,115 @@ for dt_time in np.arange(init_dt, fin_dt, dt.timedelta(minutes=6)):
         t_beforePPI = time()
 
         # Loop over radar files
-        i = 0
+        i = 1
         for n in range(0, len(paths), 2 if VOLUME == "VOLBC" else 1):
-            try:
-                # Transform polar to cartesian coordinates for each PPI according 
-                # to the volume type used
-                if VOLUME == 'VOLA' or VOLUME == 'VOLB':
-                    new_path = paths[n][-23:-8] + ".nc"
-                    if not os.path.exists(f"{PPI_save_dir}/{new_path}"):
-                        ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                                DEM_values, DEM_coords, 
-                                                dl=dl, save_dir=PPI_save_dir,
-                                                VOLUME_NAME=VOLUME)
-                    else:
-                        ds = xr.open_dataset(f"{PPI_save_dir}/{new_path}")
-
-                elif VOLUME == 'VOLBC':
-                    new_path_B = paths[n][-23:-8] + ".nc"
-                    if not os.path.exists(f"{PPI_save_dir}/{new_path_B}"):
-                        ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
-                                                    DEM_values, DEM_coords, 
-                                                    dl=dl, save_dir=PPI_save_dir,
-                                                    VOLUME_NAME='VOLB')
-                    else:
-                        ds_VOLB = xr.open_dataset(f"{PPI_save_dir}/{new_path_B}")
-                    
-                    new_path_C = paths[n+1][-23:-8] + ".nc"
-                    if not os.path.exists(f"{PPI_save_dir}/{new_path_C}"):
-                        ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
-                                                    DEM_values, DEM_coords, 
-                                                    dl=dl, save_dir=PPI_save_dir,
-                                                    VOLUME_NAME='VOLC')
-                    else:
-                        ds_VOLC = xr.open_dataset(f"{PPI_save_dir}/{new_path_C}")
-                        
-                    ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
-
-                    ds_VOLB.close()
-                    ds_VOLC.close()
-                
-                ds_x, ds_y = ds.x.values, ds.y.values
-                ds_copy = ds.copy(deep=True)
-                ds.close()
-
-                # Create temorary array for storing each radar individual products
-                if i==0:
-                    CAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar CAPPI reflectivity
-                    QICAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar CAPPI QI
-                    ELEVCAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan # Single-radar CAPPI ELEV
-                    LUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan       # Single-radar LUE reflectivity
-                    QILUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar LUE QI
-                    ELEVLUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar LUE ELEV
-
-                    # Resample DEM to match radar grid
-                    xgrid, ygrid = ds_x, ds_y
-                    x_min, x_max = xgrid.min(), xgrid.max()
-                    y_min, y_max = ygrid.min(), ygrid.max()
-                    new_transform = from_origin(x_min, y_max, dl, dl)
-                    dst_shape = (len(ygrid), len(xgrid))
-                    DEM_resampled = np.empty(dst_shape, dtype=np.float32)
-                    reproject(
-                        source=DEM_values,
-                        destination=DEM_resampled,
-                        src_transform=transform,
-                        src_crs="EPSG:4326",
-                        dst_transform=new_transform,
-                        dst_crs="EPSG:25831",
-                        resampling=Resampling.nearest
-                    )
-                
-                if "CAPPI" in config["PROD_types"]:
-                    # Apply height-to-CAPPI quality index
-                    ds_CAPPI = ds_copy.copy(deep=True)
-                    for e in range(len(ds.elev.values)):
-                        ds_e = ds_CAPPI.isel(elev=e)
-                        Z_e = ds_e.Z.values
-                        QI_e = ds_e.QI.values
-                        H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
-                        QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
-                        ds_CAPPI["QI"].values[e, ...] = QI_e
-                    
-                    # Compute and store single-radar CAPPI products
-                    CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
-                    CAPPI_ind_rad[i, ...] = CAPPI
-                    QICAPPI_ind_rad[i, ...] = QI
-                    ELEVCAPPI_ind_rad[i, ...] = ELEV
-
-                if "LUE" in config["PROD_types"]:
-                    # Apply height-to-ground quality index
-                    ds_LUE = ds_copy.copy(deep=True)
-                    for e in range(len(ds.elev.values)):
-                        ds_e = ds_LUE.isel(elev=e)
-                        Z_e = ds_e.Z.values
-                        QI_e = ds_e.QI.values
-                        H_to_ground = ds_e.H.values - DEM_resampled
-                        QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
-                        ds_LUE["QI"].values[e, ...] = QI_e
-                    
-                    # Compute and store single-radar LUE products
-                    LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
-                    LUE_ind_rad[i, ...] = LUE
-                    QILUE_ind_rad[i, ...] = QI
-                    ELEVLUE_ind_rad[i, ...] = ELEV
-            
-            except Exception as e:
-                print(f"\nNot able to compute {paths[n]}\n{e}\n")
-
-            i += 1
             print(f"{p_str}PPI iteration: {i}/4", end='\r')
+            if paths[n] != None:
+                try:
+                    # Transform polar to cartesian coordinates for each PPI according 
+                    # to the volume type used
+                    if VOLUME == 'VOLA' or VOLUME == 'VOLB':
+                        new_path = paths[n][-23:-8] + ".nc"
+                        if not os.path.exists(f"{PPI_save_dir}/{new_path}"):
+                            ds = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                                    DEM_values, DEM_coords, 
+                                                    dl=dl, save_dir=PPI_save_dir,
+                                                    VOLUME_NAME=VOLUME)
+                        else:
+                            ds = xr.open_dataset(f"{PPI_save_dir}/{new_path}")
+
+                    elif VOLUME == 'VOLBC':
+                        new_path_B = paths[n][-23:-8] + ".nc"
+                        if not os.path.exists(f"{PPI_save_dir}/{new_path_B}"):
+                            ds_VOLB = Polar2Cartesian(paths[n], TOP12_clim_path, 
+                                                        DEM_values, DEM_coords, 
+                                                        dl=dl, save_dir=PPI_save_dir,
+                                                        VOLUME_NAME='VOLB')
+                        else:
+                            ds_VOLB = xr.open_dataset(f"{PPI_save_dir}/{new_path_B}")
+                        
+                        new_path_C = paths[n+1][-23:-8] + ".nc"
+                        if not os.path.exists(f"{PPI_save_dir}/{new_path_C}"):
+                            ds_VOLC = Polar2Cartesian(paths[n+1], TOP12_clim_path, 
+                                                        DEM_values, DEM_coords, 
+                                                        dl=dl, save_dir=PPI_save_dir,
+                                                        VOLUME_NAME='VOLC')
+                        else:
+                            ds_VOLC = xr.open_dataset(f"{PPI_save_dir}/{new_path_C}")
+                            
+                        ds = xr.concat([ds_VOLB, ds_VOLC], dim="elev")
+
+                        ds_VOLB.close()
+                        ds_VOLC.close()
+                    
+                    ds_x, ds_y = ds.x.values, ds.y.values
+                    ds_copy = ds.copy(deep=True)
+                    ds.close()
+
+                    # Create temorary array for storing each radar individual products
+                    if i==1:
+                        CAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar CAPPI reflectivity
+                        QICAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar CAPPI QI
+                        ELEVCAPPI_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan # Single-radar CAPPI ELEV
+                        LUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan       # Single-radar LUE reflectivity
+                        QILUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan     # Single-radar LUE QI
+                        ELEVLUE_ind_rad = np.ones((4, len(ds_y), len(ds_x))) * np.nan   # Single-radar LUE ELEV
+
+                        # Resample DEM to match radar grid
+                        xgrid, ygrid = ds_x, ds_y
+                        x_min, x_max = xgrid.min(), xgrid.max()
+                        y_min, y_max = ygrid.min(), ygrid.max()
+                        new_transform = from_origin(x_min, y_max, dl, dl)
+                        dst_shape = (len(ygrid), len(xgrid))
+                        DEM_resampled = np.empty(dst_shape, dtype=np.float32)
+                        reproject(
+                            source=DEM_values,
+                            destination=DEM_resampled,
+                            src_transform=transform,
+                            src_crs="EPSG:4326",
+                            dst_transform=new_transform,
+                            dst_crs="EPSG:25831",
+                            resampling=Resampling.nearest
+                        )
+                    
+                    if "CAPPI" in config["PROD_types"]:
+                        # Apply height-to-CAPPI quality index
+                        ds_CAPPI = ds_copy.copy(deep=True)
+                        for e in range(len(ds.elev.values)):
+                            ds_e = ds_CAPPI.isel(elev=e)
+                            Z_e = ds_e.Z.values
+                            QI_e = ds_e.QI.values
+                            H_to_CAPPI = np.abs(ds_e.H.values - CAPPI_H)
+                            QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_CAPPI)[Z_e != -32]
+                            ds_CAPPI["QI"].values[e, ...] = QI_e
+                        
+                        # Compute and store single-radar CAPPI products
+                        CAPPI, QI, ELEV = make_CAPPI(ds_CAPPI, CAPPI_H)
+                        CAPPI_ind_rad[i-1, ...] = CAPPI
+                        QICAPPI_ind_rad[i-1, ...] = QI
+                        ELEVCAPPI_ind_rad[i-1, ...] = ELEV
+
+                    if "LUE" in config["PROD_types"]:
+                        # Apply height-to-ground quality index
+                        ds_LUE = ds_copy.copy(deep=True)
+                        for e in range(len(ds.elev.values)):
+                            ds_e = ds_LUE.isel(elev=e)
+                            Z_e = ds_e.Z.values
+                            QI_e = ds_e.QI.values
+                            H_to_ground = ds_e.H.values - DEM_resampled
+                            QI_e[Z_e != -32] = QI_e[Z_e != -32] * distance_weighting(H_to_ground)[Z_e != -32]
+                            ds_LUE["QI"].values[e, ...] = QI_e
+                        
+                        # Compute and store single-radar LUE products
+                        LUE, QI, H, ELEV = make_LUE(ds_LUE, DEM_resampled)
+                        LUE_ind_rad[i-1, ...] = LUE
+                        QILUE_ind_rad[i-1, ...] = QI
+                        ELEVLUE_ind_rad[i-1, ...] = ELEV
+                
+                except Exception as e:
+                    print(f"\nNot able to compute {paths[n]}\n{e}\n")
+
+                i += 1
 
         t_beforeCOMP = time()
         T = t_beforeCOMP - t_beforePPI
