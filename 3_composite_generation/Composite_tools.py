@@ -3,10 +3,10 @@ import numpy as np
 def composite(Z_ind_rad, QI_ind_rad, ELEV_ind_rad, comp_type="MAXZ"):
     ''' Create a composite from multiple individual radar datasets by selecting the value with the highest reflectivity or quality index for each pixel.
     
-     :param Z_ind_rad: 3D array of reflectivity values for each radar, elevation and pixel
-     :param QI_ind_rad: 3D array of quality index values for each radar, elevation and pixel
-     :param ELEV_ind_rad: 3D array of elevation values for each radar, elevation and pixel
-     :param comp_type: String indicating the composition method to use ("MAXZ" or "MAXQI")
+     :param Z_ind_rad: 3D array of reflectivity values for each radar, x and y
+     :param QI_ind_rad: 3D array of quality index values for each radar, x and y
+     :param ELEV_ind_rad: 3D array of elevation values for each radar, x and y
+     :param comp_type: String indicating the composition method to use ("MAXZ", "MAXQI", "MAXQCOND")
 
      :return: Z_COMP, QI_COMP, RAD_COMP and ELEV_COMP arrays representing the composite reflectivity, quality index, radar source and elevation used for each pixel in the composite'''
 

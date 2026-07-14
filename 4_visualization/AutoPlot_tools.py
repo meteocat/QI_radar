@@ -68,31 +68,31 @@ which_cmap = mcolors.ListedColormap(colors)
 
 # ================================== Plotting function ==================================
 
-def plot_composite_file(nc_path: str, save_dir: str, comarques, large_cmap: bool = True):
+def plot_composite_file(
+        Z, Q, RAD, ELEV, x_vals, y_vals, save_path: str, comarques, large_cmap: bool = True
+    ):
     """Generate and save the composite figure from a netCDF file.
 
     Parameters
     ----------
-    nc_path : str
-        Path to ``.nc`` file containing the composite fields.
-    save_dir : str
-        Directory where the PNG will be stored.  Created if missing.
+    Z : numpy.ndarray
+        Reflectivity data.
+    Q : numpy.ndarray
+        QI data.
+    RAD : numpy.ndarray
+        Radar data.
+    ELEV : numpy.ndarray
+        Elevation data.
+    x_vals : numpy.ndarray
+        X coordinates.
+    y_vals : numpy.ndarray
+        Y coordinates.
+    save_path : str
+        Path where the PNG will be stored.
     large_cmap : bool, optional
         If ``True`` use the full -10..65 dBZ colour- scale.  Otherwise drop
         the first three colours and mask values below 5 dBZ (reduced scale).
     """
-
-    os.makedirs(save_dir, exist_ok=True)
-    filename = os.path.basename(nc_path)[:-3]
-
-    # read data arrays
-    with xr.open_dataset(nc_path, engine="scipy") as ds:
-        Z_comp = ds.Z.values
-        QI_comp = ds.QI.values
-        which_rad = ds.RAD.values
-        ELEV = ds.ELEV.values
-        x_vals = ds.x.values
-        y_vals = ds.y.values
 
     # geographic overlays and radar positions
     _to_utm = Transformer.from_crs("EPSG:4326", "EPSG:25831", always_xy=True)
@@ -105,16 +105,16 @@ def plot_composite_file(nc_path: str, save_dir: str, comarques, large_cmap: bool
     if large_cmap:
         cmap = rad_cmap
         norm = rad_norm
-        mask = (Z_comp == -32)
+        mask = (Z == -32)
         bounds_used = bounds
     else:
         cmap = rad_cmap_zero
         norm = rad_norm_zero
-        mask = (Z_comp < 5)
+        mask = (Z < 5)
         bounds_used = bounds_zero
 
-    Z_comp_plot = np.copy(Z_comp)
-    Z_comp_plot[mask] = np.nan
+    Z_plot = np.copy(Z)
+    Z_plot[mask] = np.nan
 
     # figure layout
     fig = plt.figure(figsize=(20,10))
@@ -139,22 +139,22 @@ def plot_composite_file(nc_path: str, save_dir: str, comarques, large_cmap: bool
         axis.set_xlim(x_vals.min(), x_vals.max())
         axis.set_ylim(y_vals.min(), y_vals.max())
 
-    pc_big = ax_big.pcolormesh(x_vals, y_vals, Z_comp_plot, norm=norm, cmap=cmap)
+    pc_big = ax_big.pcolormesh(x_vals, y_vals, Z_plot, norm=norm, cmap=cmap)
     fig.colorbar(pc_big, ax=ax_big, fraction=0.03, pad=0.01,
                  boundaries=bounds_used, ticks=bounds_used)
     ax_big.set_title("REFLECTIVITY (dBZ)", fontsize=14)
 
-    pc = ax_tl.pcolormesh(x_vals, y_vals, which_rad, cmap=which_cmap)
+    pc = ax_tl.pcolormesh(x_vals, y_vals, RAD, cmap=which_cmap)
     cbar = fig.colorbar(pc, ax=ax_tl,
                         ticks=np.arange(0.75/2, 3, 0.75),
                         fraction=0.03, pad=0.01)
     cbar.ax.set_yticklabels(labels)
     ax_tl.set_title("RADAR SELECTED")
 
-    QI_DET = np.copy(QI_comp)
-    QI_UNDET = np.copy(QI_comp)
-    QI_DET[Z_comp == -32] = np.nan
-    QI_UNDET[Z_comp > -32] = np.nan
+    QI_DET = np.copy(Q)
+    QI_UNDET = np.copy(Q)
+    QI_DET[Z == -32] = np.nan
+    QI_UNDET[Z > -32] = np.nan
 
     pc = ax_bl.pcolormesh(x_vals, y_vals, QI_DET, vmin=0, vmax=1, cmap=cmap_QI)
     fig.colorbar(pc, ax=ax_bl, fraction=0.03, pad=0.01)
@@ -176,13 +176,8 @@ def plot_composite_file(nc_path: str, save_dir: str, comarques, large_cmap: bool
         axis.scatter(rad_x, rad_y, facecolors="white",
                      edgecolors="black", linewidths=2, zorder=20)
 
-    outpath = os.path.join(save_dir, f"{filename}.png")
-    plt.savefig(outpath, dpi=200, bbox_inches="tight")
+    plt.savefig(save_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
     plt.clf()
     plt.close("all")
-    del Z_comp, QI_comp, which_rad, ELEV, x_vals, y_vals
     import gc; gc.collect()
-    # print(f"Saved {outpath}")
-
-

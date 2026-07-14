@@ -1,20 +1,11 @@
 # FOR MORE IN DEPTH SPECIFICATIONS ON CONFIGURATION INPUTS, SEE THE README FILE
 # DO NOT CHANGE THE FORMAT OF THIS CONFIGURATION FILE!
 
-===================== INITIAL UTC TIME [YYYY-MM-DDTHH:MM] =====================
-2025-09-21T16:06
-
-====================== FINAL UTC TIME [YYYY-MM-DDTHH:MM] ======================
-2025-09-21T16:12
-
-============== VOLUME SCAN USED ["VOLA", "VOLB" AND/OR "VOLBC"] ===============
-VOLB
-
 ==================== PRODUCT TYPES ["LUE" AND/OR "CAPPI"] =====================
 LUE, CAPPI
 
 ============= COMPOSITE TYPES ["MAXZ", "MAXQI" AND/OR "MAXQCOND"] =============
-MAXZ, MAXQI
+MAXZ, MAXQI, MAXQCOND
 
 ============================ CAPPI HEIGHT (meters) ============================
 1000
@@ -22,17 +13,11 @@ MAXZ, MAXQI
 ======================== CARTESIAN RESOLUTION (meters) ========================
 1000
 
-============================ REGION SHAPEFILE PATH ============================
-
-
 ======================== SHORT-RANGE DEM DIRECTORY PATH =======================
-/home/user/DEM/dem_100m_shortRange_wgs84.tif
+/home/user/path_to_short_range_DEM.tiff
 
 ======================== LONG-RANGE DEM DIRECTORY PATH ========================
-/home/user/DEM/dem_100m_longRange_wgs84.tif
-
-============ TEMPORAL STORAGE NAME FOR INDIVIDUAL RADAR PPI FIELDS ============
-temp
+/home/user/path_to_long_range_DEM.tiff
 
 ======================= ECHO TOPS 12dBZ CLIMATOLOGY PATH ======================
-HIST_TOP12.nc
+/home/user/path_to_HIST_TOP12.nc
