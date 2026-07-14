@@ -106,40 +106,6 @@ QI_radar/
 - `3_composite_generation/Composite_tools.py`: implements the composite selection strategies.
 - `4_visualization/plot_products.py`: produces PNG plots from the composite outputs.
 
-## Installation
-
-The project depends on several scientific Python packages.
-
-### Requirements
-
-This repository expects Python 3.10 or newer. The current dependency set is defined in `requirements.txt` and includes:
-
-- `numpy`
-- `xarray`
-- `netCDF4`
-- `rasterio`
-- `wradlib`
-- `xradar`
-- `cartopy`
-- `geopandas`
-- `matplotlib`
-- `pyproj`
-- `shapely`
-
-Install the dependencies with:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-If you are using a virtual environment, create and activate it before installing the dependencies.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
 ## Configuration
 
 The main configuration file is `config.txt`. A template is available in `config_template.txt`.
