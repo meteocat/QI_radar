@@ -196,7 +196,7 @@ python 4_visualization/plot_products.py \
   -s /path/to/region.shp
 ```
 
-The plotting step writes PNG files into a nested directory structure under the chosen output directory. The script creates one folder for the volume, then one for the product type, then one for the composite type, and finally year/month/day folders before writing the PNG file.
+<!-- The plotting step writes PNG files into a nested directory structure under the chosen output directory. The script creates one folder for the volume, then one for the product type, then one for the composite type, and finally year/month/day folders before writing the PNG file.
 
 ```text
 <output_dir>/
@@ -213,7 +213,7 @@ For example, a CAPPI composite for volume VOLA could be written to a path like:
 
 ```text
 <output_dir>/VOLA/CAPPI/MAXZ/2026/07/14/VOLA_CAPPI_MAXZ_202607141200.png
-```
+``` -->
 
 ## Outputs
 

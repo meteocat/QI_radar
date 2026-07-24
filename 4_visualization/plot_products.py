@@ -58,18 +58,22 @@ def read_geotiff_composite(geotiff_path):
         }
 
 def create_save_path(out_dir, comp, prod, volume, timestamp):
-    os.makedirs(f"{out_dir}/{volume}", exist_ok=True)
-    os.makedirs(f"{out_dir}/{volume}/{prod}", exist_ok=True)
-    todate_dir = f"{out_dir}/{volume}/{prod}/{comp}"
-    os.makedirs(todate_dir, exist_ok=True)
-    time_dt = dt.datetime.strptime(timestamp, '%Y%m%d%H%M')
-    yy, mm, dd = time_dt.strftime("%Y"), time_dt.strftime("%m"), time_dt.strftime("%d")
-    os.makedirs(f"{todate_dir}/{yy}", exist_ok=True)
-    os.makedirs(f"{todate_dir}/{yy}/{mm}", exist_ok=True)
-    save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
-    os.makedirs(save_dir, exist_ok=True)
+    # Toggle between comments to store the output in a dated folder structure or directly in the output directory
 
-    return os.path.join(save_dir, f"{volume}_{prod}_{comp}_{timestamp}.png")
+    # os.makedirs(f"{out_dir}/{volume}", exist_ok=True)
+    # os.makedirs(f"{out_dir}/{volume}/{prod}", exist_ok=True)
+    # todate_dir = f"{out_dir}/{volume}/{prod}/{comp}"
+    # os.makedirs(todate_dir, exist_ok=True)
+    # time_dt = dt.datetime.strptime(timestamp, '%Y%m%d%H%M')
+    # yy, mm, dd = time_dt.strftime("%Y"), time_dt.strftime("%m"), time_dt.strftime("%d")
+    # os.makedirs(f"{todate_dir}/{yy}", exist_ok=True)
+    # os.makedirs(f"{todate_dir}/{yy}/{mm}", exist_ok=True)
+    # save_dir = f"{todate_dir}/{yy}/{mm}/{dd}"
+    # os.makedirs(save_dir, exist_ok=True)
+
+    # return os.path.join(save_dir, f"{volume}_{prod}_{comp}_{timestamp}.png")
+    
+    return os.path.join(out_dir, f"{volume}_{prod}_{comp}_{timestamp}.png")
 
 # Read command-line arguments
 parser = argparse.ArgumentParser(description="Process input path and output directory.")
