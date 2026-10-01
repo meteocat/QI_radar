@@ -4,3 +4,4 @@ out_tests/
 *.log
 tests.ipynb
 0_data_download/
+run_pipeline.sh

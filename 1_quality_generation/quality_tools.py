@@ -212,10 +212,11 @@ def single_PPI(ds, TOP12_clim_path, DEM_values, DEM_coords, instr_var):
     AbsDeltaZ = np.abs(PBB_DeltaZ + NonUnif_DeltaZ - PIA)       # Total absolute error
 
     # Compute ∆Z Quality Index
-    QDeltaZ = (10 - AbsDeltaZ) / (10 - 1)
-    QDeltaZ[AbsDeltaZ <= 1] = 1
-    QDeltaZ[AbsDeltaZ >= 10] = 0
-    QDeltaZ[CBB == 1] = 0
+    # QDeltaZ = (10 - AbsDeltaZ) / (10 - 1)
+    # QDeltaZ[AbsDeltaZ <= 1] = 1
+    # QDeltaZ[AbsDeltaZ >= 10] = 0
+    # QDeltaZ[CBB == 1] = 0
+    QDeltaZ = 10 ** (- AbsDeltaZ / 16)
 
     QDeltaZ[QDeltaZ > 1] = 1
     QDeltaZ[QDeltaZ < 0] = 0

@@ -150,7 +150,7 @@ def distance_weighting(dist):
     '''
 
     # Define scale height (in meters)
-    H = 1000
+    H = 2000
 
     # Compute quality index based on distance
     QH = (np.exp(-dist**2/H**2)) ** (1/3)
