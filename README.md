@@ -1,5 +1,5 @@
 
-# Radar Quality Index Processing
+# Real-Time Quality Characterisation of Weather Radar Reflectivity Pipeline
 
 This repository implements a radar processing workflow for generating quality-aware Cartesian products from polar radar volumes. The pipeline is designed for IRIS-format radar data and produces single-radar products as well as multi-radar composites for operational meteorology.
 
